@@ -26,6 +26,7 @@ AGENTS.md                              # Project conventions (customize per repo
 .github/
   copilot-instructions.md              # Repo-scoped instructions (auto-discovered)
   agents/
+    implementer.agent.md               # OpenSpec task implementer agent
     reviewer.agent.md                  # Strict code reviewer agent
   skills/
     openspec-apply-change/
@@ -47,6 +48,14 @@ Then ask Copilot: "Read the README and set up AGENTS.md for this project."
 
 ### AGENTS.md (template)
 Project conventions checklist with `<!-- FILL -->` markers. Copilot reads this file before every task and enforces its rules. Sections: tech stack, language rules, naming, testing, API design, migrations, module structure.
+
+### Implementer Agent (`@Implementer`)
+Disciplined task implementer that:
+- Reads OpenSpec change context (proposal, specs, tasks)
+- Implements tasks one by one, following AGENTS.md conventions
+- Invokes @Reviewer automatically after implementation
+- Handles review fix cycles before build verification
+- Runs build/test commands from AGENTS.md
 
 ### Reviewer Agent (`@Reviewer`)
 Read-only code reviewer that checks against:
