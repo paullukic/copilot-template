@@ -6,6 +6,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
+  generatedBy: "1.2.0"
 ---
 
 Implement tasks from an OpenSpec change.
@@ -19,9 +20,9 @@ Implement tasks from an OpenSpec change.
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If ambiguous, run `openspec list --json` to get available changes and ask the user to select
+   - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
 
-   Always announce: "Using change: <name>" and how to override.
+   Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
 
 2. **Check status to understand the schema**
    ```bash
@@ -29,7 +30,7 @@ Implement tasks from an OpenSpec change.
    ```
    Parse the JSON to understand:
    - `schemaName`: The workflow being used (e.g., "spec-driven")
-   - Which artifact contains the tasks
+   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
 3. **Get apply instructions**
 
@@ -38,7 +39,7 @@ Implement tasks from an OpenSpec change.
    ```
 
    This returns:
-   - Context file paths
+   - Context file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
@@ -51,6 +52,9 @@ Implement tasks from an OpenSpec change.
 4. **Read context files**
 
    Read the files listed in `contextFiles` from the apply instructions output.
+   The files depend on the schema being used:
+   - **spec-driven**: proposal, specs, design, tasks
+   - Other schemas: follow the contextFiles from CLI output
 
 5. **Show current progress**
 
@@ -62,41 +66,55 @@ Implement tasks from an OpenSpec change.
 
 6. **Implement tasks (loop until done or blocked)**
 
+   **CRITICAL**: The tasks.md is your work order — follow it literally. Never rewrite, reinterpret, or regenerate the tasks. Never invent field names, API types, or schemas that don't exist in the actual source code.
+
    For each pending task:
    - Show which task is being worked on
-   - Make the code changes required
+   - **Read all source files** you'll modify — in full — before making any changes
+   - **Verify field/type names** exist in the actual codebase (check type definitions, existing schemas, etc.)
+   - Make the code changes required using file editing tools (replace_string_in_file, create_file, etc.)
+   - Every task MUST result in actual file edits, not descriptions of what to do
    - Keep changes minimal and focused
-   - Mark task complete in the tasks file: `- [ ]` -> `- [x]`
+   - Mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
 
    **Pause if:**
-   - Task is unclear -> ask for clarification
-   - Implementation reveals a design issue -> suggest updating artifacts
-   - Error or blocker encountered -> report and wait for guidance
+   - Task is unclear → ask for clarification
+   - Implementation reveals a design issue → suggest updating artifacts
+   - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **Auto-review before build verification**
+7. **Self-verification gate** (mandatory — do not skip)
 
-   Once all implementation tasks are complete (but before any build/test tasks):
+   Once all implementation tasks are complete, run through these checks **before** invoking the Reviewer:
+
+   1. **Feature inventory**: For every container/page/module you modified, compare with the original version and list every feature (sections, hooks, conditional blocks, special-case UI). Confirm each one is still present or was **explicitly** requested for removal.
+   2. **i18n completeness** (if project uses i18n): Verify every new/changed translation key has corresponding entries in all language files. Verify removed UI text has its translation keys removed. Verify user-provided text is verbatim.
+   3. **Orphan check** (if project uses i18n): Search the codebase for every translation key you touched — confirm each one is still referenced somewhere. Remove unreferenced keys.
+   4. **API constraint check**: If the change involves form state that maps to multiple API flags, verify whether the backend enforces mutual exclusivity or other constraints between them.
+   5. **Spec text match**: Re-read the spec/ticket and confirm all UI labels, tooltips, and helper text match verbatim.
+
+   Only proceed to step 8 after completing all checks. If any check fails, fix before continuing.
+
+8. **Auto-review before build verification** (mandatory — never skip)
+
+   Once the self-verification gate passes:
    - Invoke the **Reviewer** agent with the change name and list of changed files.
-   - The Reviewer will check against AGENTS.md, spec compliance, testing standards, and deep bug hunting (including control flow verification).
+   - The Reviewer will check against `.github/copilot-instructions.md`, spec compliance, and deep bug hunting (including control flow verification).
    - If the Reviewer returns **REQUEST_CHANGES**:
      - Add the findings as new tasks in the tasks file under a "Review Fixes" section.
      - Implement the review fixes before proceeding.
      - After fixes, re-invoke the Reviewer on only the changed files.
    - If the Reviewer returns **APPROVE**: proceed to build verification tasks.
-   - This step is NOT optional -- never skip straight to build/test.
+   - This step is NOT optional — never skip straight to build/test.
 
-8. **Build verification**
+9. **Build verification**
 
-   Run the project's build and test commands. Check `AGENTS.md` for:
-   - The build tool (Maven, Gradle, npm, etc.)
-   - The test command (e.g., `mvn clean install -Pintegration-tests`, `npm test`)
-   - If `AGENTS.md` lists related repositories, run builds in ALL repos affected by the change.
+   Check `.github/copilot-instructions.md` for the project's build/quality commands. Run them in the documented order. If any command fails, fix the issue and re-run.
 
-   If the build command is not documented, ask the user.
+   If the build commands are not documented, ask the user.
 
-9. **On completion or pause, show status**
+10. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -111,11 +129,11 @@ Implement tasks from an OpenSpec change.
 
 Working on task 3/7: <task description>
 [...implementation happening...]
-Task complete
+✓ Task complete
 
 Working on task 4/7: <task description>
 [...implementation happening...]
-Task complete
+✓ Task complete
 ```
 
 **Output On Completion**
@@ -125,7 +143,7 @@ Task complete
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Progress:** 7/7 tasks complete
+**Progress:** 7/7 tasks complete ✓
 
 ### Completed This Session
 - [x] Task 1
@@ -162,13 +180,12 @@ What would you like to do?
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
-- Pause on errors, blockers, or unclear requirements -- don't guess
+- Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
-- **Re-review before testing**: After implementing a fix or non-trivial change, re-read the changed code and trace control flow (try/catch/finally paths, null propagation, edge cases) before running tests. Do not go straight from editing to test execution.
 
 **Fluid Workflow Integration**
 
 This skill supports the "actions on a change" model:
 
 - **Can be invoked anytime**: Before all artifacts are done (if tasks exist), after partial implementation, interleaved with other actions
-- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts -- not phase-locked, work fluidly
+- **Allows artifact updates**: If implementation reveals design issues, suggest updating artifacts - not phase-locked, work fluidly

@@ -1,36 +1,47 @@
 # Copilot Template
 
-Reusable VS Code Copilot customization files for any project.
+Reusable VS Code Copilot customization files for any project. Includes agents, skills, and prompts for an OpenSpec-driven development workflow.
 
 ## For Copilot: Bootstrap Instructions
 
 When a user adds this template to a new project and asks you to set it up:
 
-1. **Read `AGENTS.md`** and find all sections marked with `<!-- FILL: ... -->`.
+1. **Read `.github/copilot-instructions.md`** and find all sections marked with `<!-- FILL: ... -->` or `_TBD_`.
 2. **Ask the user** for the missing information. Group your questions:
    - Tech stack (language, framework, ORM, build tool, test framework)
-   - Naming conventions (if different from defaults)
-   - Module/package structure
-   - Database migration tool and author name
+   - Commands (dev, build, lint, format, test)
+   - Project structure
+   - Code style preferences (imports, exports, functions)
+   - Naming conventions
    - Any project-specific rules
-3. **Fill in the sections** with the answers. Remove the `<!-- FILL: ... -->` comments.
-4. **Delete sections** the user says don't apply (e.g., no DB migrations, no API specs).
-5. **Confirm** the final `AGENTS.md` with the user.
+3. **Fill in the sections** with the answers. Remove the `<!-- FILL: ... -->` comments and `_TBD_` placeholders.
+4. **Delete sections** the user says don't apply (e.g., no i18n, no API design).
+5. **Update `AGENTS.md`** with a brief stack and structure summary.
+6. **Confirm** the final setup with the user.
 
 If the user says "read the README" or "set up my project", this is what they mean.
 
 ## Structure
 
 ```
-AGENTS.md                              # Project conventions (customize per repo)
+AGENTS.md                                    # Quick agent summary (Cursor/Windsurf compat)
 .github/
-  copilot-instructions.md              # Repo-scoped instructions (auto-discovered)
+  copilot-instructions.md                    # Project conventions (single source of truth)
   agents/
-    implementer.agent.md               # OpenSpec task implementer agent
-    reviewer.agent.md                  # Strict code reviewer agent
+    implementer.agent.md                     # OpenSpec task implementer with review gate
+    reviewer.agent.md                        # Strict code reviewer agent
   skills/
-    openspec-apply-change/
-      SKILL.md                         # Implement tasks with auto-review gate
+    openspec-apply-change/SKILL.md           # Implement tasks with self-verification gate
+    openspec-propose/SKILL.md                # Propose a change with all artifacts
+    openspec-explore/SKILL.md                # Explore mode — thinking partner
+    openspec-archive-change/SKILL.md         # Archive completed changes
+  prompts/
+    opsx-apply.prompt.md                     # Quick prompt: /opsx:apply
+    opsx-propose.prompt.md                   # Quick prompt: /opsx:propose
+    opsx-explore.prompt.md                   # Quick prompt: /opsx:explore
+    opsx-archive.prompt.md                   # Quick prompt: /opsx:archive
+openspec/
+  config.yaml                                # OpenSpec schema configuration
 ```
 
 ## Setup
@@ -40,75 +51,42 @@ Copy into a new project:
 ```bash
 cp AGENTS.md /path/to/your-project/
 cp -r .github/ /path/to/your-project/.github/
+cp -r openspec/ /path/to/your-project/openspec/
 ```
 
-Then ask Copilot: "Read the README and set up AGENTS.md for this project."
+Then ask Copilot: "Read the README and set up my project."
 
 ## What's Included
 
-### AGENTS.md (template)
-Project conventions checklist with `<!-- FILL -->` markers. Copilot reads this file before every task and enforces its rules. Sections: tech stack, language rules, naming, testing, API design, migrations, module structure.
+### `.github/copilot-instructions.md` (template)
+The single source of truth for project conventions. Has `<!-- FILL -->` and `_TBD_` markers for: tech stack, commands, project structure, code style, naming, data layer, testing, API design, i18n, logging, security, and implementation safety rules. Copilot reads this automatically.
 
-### Implementer Agent (`@Implementer`)
-Disciplined task implementer that:
-- Reads OpenSpec change context (proposal, specs, tasks)
-- Implements tasks one by one, following AGENTS.md conventions
-- Invokes @Reviewer automatically after implementation
-- Handles review fix cycles before build verification
-- Runs build/test commands from AGENTS.md
+### `AGENTS.md` (template)
+A brief summary for multi-editor compatibility (Cursor, Windsurf, etc.). Points to `copilot-instructions.md` as the full reference.
 
-### Reviewer Agent (`@Reviewer`)
-Read-only code reviewer that checks against:
-- Project conventions (AGENTS.md)
-- Spec/task compliance (OpenSpec or similar)
-- Deep bug hunting (NPEs, control flow, concurrency, data integrity)
-- Simplicity and cleanliness
-- Cross-module impact
+### Agents
 
-### Apply-Change Skill (OpenSpec)
-Implements tasks from OpenSpec changes with a built-in workflow:
-1. Read spec context
-2. Implement tasks one by one
-3. **Auto-review** -- invokes Reviewer agent before build verification
-4. If issues found: adds fix tasks, implements, re-reviews
-5. Build verification
+- **Implementer** — Executes OpenSpec tasks methodically. Has Cardinal Rules (tasks.md is the work order, read before writing, never invent fields, make real edits) and a Self-Verification Gate (feature inventory, i18n completeness, orphan check, API constraint check, spec text match) before review.
+- **Reviewer** — Strict read-only code reviewer. Checks spec compliance, project conventions, data layer patterns, deep bugs (control flow, null paths, edge cases), simplicity, and cross-module impact.
 
-Requires [openspec CLI](https://github.com/openspec-dev/openspec). Delete this skill if you don't use OpenSpec.
+### Skills
 
-## Example Bootstrap Conversation
+- **openspec-apply-change** — Implements tasks from an OpenSpec change with auto-review gate and self-verification.
+- **openspec-propose** — Creates a change and generates all artifacts (proposal, design, tasks) in one step.
+- **openspec-explore** — Thinking partner mode for exploring ideas, investigating problems, and clarifying requirements. Read-only — never implements code.
+- **openspec-archive-change** — Archives completed changes with delta spec sync assessment.
 
-```
-User: Read the README and set up AGENTS.md for this project.
+### Prompts
 
-Copilot: I found unfilled sections in AGENTS.md. I need some info:
+Slash-command shortcuts (`/opsx:apply`, `/opsx:propose`, `/opsx:explore`, `/opsx:archive`) that invoke the corresponding skills with a streamlined interface.
 
-1. Tech stack:
-   - Language & version? (e.g., Java 17, TypeScript 5, Python 3.12)
-   - Framework? (e.g., Spring Boot, Next.js, FastAPI)
-   - ORM/data layer? (e.g., JPA/Hibernate, Prisma, SQLAlchemy)
-   - Test framework? (e.g., JUnit 5 + Mockito, Jest, pytest)
-   - Build tool? (e.g., Maven, Gradle, npm, Poetry)
+### OpenSpec Config
 
-2. Do you use API specs (OpenAPI, GraphQL schema)?
-3. Do you use database migrations? If so, which tool (Liquibase, Flyway, Alembic, Prisma Migrate)?
-4. Do you have related repositories that share contracts/APIs?
-5. How does i18n work? (message bundles, i18next, gettext, or N/A)
-6. Any project-specific rules I should know?
+Default `spec-driven` schema with commented examples for project context and per-artifact rules.
 
-User: Java 17, Spring Boot, JPA, JUnit 5, Maven. We use OpenAPI specs.
-       Liquibase for migrations, author name "john". No related repos.
-       i18n via Spring MessageSource, keys like module.feature.label.
-       No extra rules.
+## Workflow
 
-Copilot: Done! I've filled in AGENTS.md and removed sections that don't
-         apply (Related Repositories). Want me to review the result?
-```
-
-## Auto-Discovery
-
-| File | Discovered by | Purpose |
-|------|---------------|---------|
-| `AGENTS.md` | VS Code Copilot (repo root) | Project conventions |
-| `.github/copilot-instructions.md` | VS Code Copilot | Workflow instructions |
-| `.github/agents/*.agent.md` | VS Code Copilot | Custom agents (`@AgentName`) |
-| `.github/skills/*/SKILL.md` | VS Code Copilot | Invokable skills |
+1. **Propose**: Describe what you want to build → `/opsx:propose add-dark-mode`
+2. **Explore** (optional): Think through problems → `/opsx:explore`
+3. **Implement**: Work through tasks → `/opsx:apply`
+4. **Archive**: Finalize when done → `/opsx:archive`

@@ -13,3 +13,6 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# OpenSpec change archives (optional — uncomment to ignore)
+# openspec/changes/archive/
