@@ -69,23 +69,37 @@ For every changed file, check against these categories:
 - Check if existing utilities or framework features could replace hand-written code.
 
 ### Cross-Module Impact
-- For every changed file, trace its usage across all modules.
-- If a shared component, type, enum, or interface is modified, verify all consuming modules are updated consistently.
+- If a changed file's **exported API surface** (types, props, function signatures) was modified, use `grep_search` to find callers and verify they're consistent.
+- Do NOT trace callers for internal-only changes (implementation details, local variables, private helpers).
 - Look for broken contracts: renamed fields, removed props/methods, changed enum values that other modules depend on.
 
 ## Workflow
 
-1. Read `.github/copilot-instructions.md` and any active spec/change context.
-2. **Anchor to the working tree** (mandatory before reading any file):
-   - Run `git branch --show-current` to confirm the active branch.
-   - Run `git diff --stat` (or `git diff <base-branch> --stat`) to list changed files with line counts.
-   - Use this diff output as ground truth for which files changed and what the changes are.
-3. Identify changed files from the diff output above.
-4. Read each changed file fully. **After reading, verify** the content is consistent with the diff (e.g., the imports, types, and function signatures match what the diff shows). If file content looks inconsistent with the diff, re-read using `run_in_terminal` with `cat <file>` to get the actual on-disk content.
-5. For each changed file, trace its callers and dependents across all modules.
-6. Walk through the **entire** checklist above, file by file — do not skip sections.
-7. Produce the structured review output.
-8. If the user asks you to re-review after fixes, re-read only the changed files and update your findings.
+### Phase 1 — Anchor & scope (mandatory first step)
+
+1. Read `.github/copilot-instructions.md`.
+2. Run `git branch --show-current` to confirm the active branch.
+3. Run `git diff <base-branch> --stat` to list changed files.
+4. Run `git diff <base-branch>` (full diff) — this is **the primary review source**.
+5. If the user provided spec/change context, read it. Otherwise skip spec artifacts to conserve context.
+
+### Phase 2 — Diff-first review
+
+6. Walk the checklist **against the diff hunks**, not full files. For most convention checks (imports, exports, function style, i18n) the diff provides enough context.
+7. Only read the full file (via `run_in_terminal` with `cat`) when:
+   - The diff hunk lacks surrounding context needed to evaluate correctness (e.g., a change references a variable defined elsewhere in the file).
+   - You need to verify the file's overall structure (export ordering, component count).
+8. **Never read files that are not in the diff** unless a changed file's public API surface (exported types, props, function signatures) was modified — then use `grep_search` to find callers and read only the relevant lines of those callers.
+
+### Phase 3 — Targeted deep dives
+
+9. From the diff-based pass, identify areas that look suspicious or complex. Deep-dive **only** into those specific areas — read surrounding code, trace logic, check edge cases.
+10. Do NOT deep-dive into code that looks straightforward and matches established patterns.
+
+### Phase 4 — Output
+
+11. Produce the structured review output.
+12. If the user asks you to re-review after fixes, re-read only the changed files and update your findings.
 
 ## Output Format
 
@@ -116,5 +130,14 @@ APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION
 - **Prefer specific line references** over vague descriptions.
 - **One finding per bullet.** Keep each point atomic and actionable.
 - **Do not suggest refactors** beyond what conventions or specs require.
-- **Always dig deep** — surface-level reviews are not acceptable. Read logic line by line.
-- **Always check every module** — never assume a change is isolated to one module.
+
+### Evidence rule (mandatory)
+
+Every finding that references specific code **must** include a verbatim quote of the relevant line(s) from a tool output (diff hunk, `cat`, `read_file`, or `grep_search`). If you cannot produce an exact quote from a verified tool output, **drop the finding** — do not report it. This prevents confabulated findings about code that doesn't exist.
+
+### Context discipline
+
+- The `git diff` output is your primary review source. Do not read full files just to be thorough.
+- Only expand context (read full file, trace callers) when a specific finding requires it.
+- If you've already consumed many files and the context is getting large, stop expanding and review what you have.
+- Never read spec artifacts (proposal, design, tasks) unless reviewing spec compliance specifically.
