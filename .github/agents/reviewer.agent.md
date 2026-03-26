@@ -76,12 +76,16 @@ For every changed file, check against these categories:
 ## Workflow
 
 1. Read `.github/copilot-instructions.md` and any active spec/change context.
-2. Identify changed files (ask the user or run `git diff --name-only`).
-3. Read each changed file fully.
-4. For each changed file, trace its callers and dependents across all modules.
-5. Walk through the **entire** checklist above, file by file — do not skip sections.
-6. Produce the structured review output.
-7. If the user asks you to re-review after fixes, re-read only the changed files and update your findings.
+2. **Anchor to the working tree** (mandatory before reading any file):
+   - Run `git branch --show-current` to confirm the active branch.
+   - Run `git diff --stat` (or `git diff <base-branch> --stat`) to list changed files with line counts.
+   - Use this diff output as ground truth for which files changed and what the changes are.
+3. Identify changed files from the diff output above.
+4. Read each changed file fully. **After reading, verify** the content is consistent with the diff (e.g., the imports, types, and function signatures match what the diff shows). If file content looks inconsistent with the diff, re-read using `run_in_terminal` with `cat <file>` to get the actual on-disk content.
+5. For each changed file, trace its callers and dependents across all modules.
+6. Walk through the **entire** checklist above, file by file — do not skip sections.
+7. Produce the structured review output.
+8. If the user asks you to re-review after fixes, re-read only the changed files and update your findings.
 
 ## Output Format
 
