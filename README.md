@@ -30,6 +30,9 @@ AGENTS.md                                    # Quick agent summary (Cursor/Winds
   agents/
     implementer.agent.md                     # OpenSpec task implementer with review gate
     reviewer.agent.md                        # Strict code reviewer agent
+    debugger.agent.md                        # Root-cause analysis and minimal fixes
+    planner.agent.md                         # Interview-driven planning
+    verifier.agent.md                        # Evidence-based completion checks
   skills/
     openspec-apply-change/SKILL.md           # Implement tasks with self-verification gate
     openspec-propose/SKILL.md                # Propose a change with all artifacts
@@ -66,8 +69,11 @@ A brief summary for multi-editor compatibility (Cursor, Windsurf, etc.). Points 
 
 ### Agents
 
-- **Implementer** — Executes OpenSpec tasks methodically. Has Cardinal Rules (tasks.md is the work order, read before writing, never invent fields, make real edits) and a Self-Verification Gate (feature inventory, i18n completeness, orphan check, API constraint check, spec text match) before review.
-- **Reviewer** — Strict read-only code reviewer. Checks spec compliance, project conventions, data layer patterns, deep bugs (control flow, null paths, edge cases), simplicity, and cross-module impact.
+- **Implementer** — Executes OpenSpec tasks methodically. Has Cardinal Rules (tasks.md is the work order, read before writing, never invent fields, make real edits), a Self-Verification Gate (feature inventory, i18n completeness, orphan check, API constraint check, spec text match), Completion Check, and structured Failure Modes To Avoid with good/bad examples.
+- **Reviewer** — Strict read-only code reviewer. Checks spec compliance, project conventions, data layer patterns, deep bugs (control flow, null paths, edge cases), simplicity, and cross-module impact. Evidence rule: every finding must include a verbatim quote from tool output.
+- **Debugger** — Root-cause analysis with a structured investigation protocol (Reproduce → Gather Evidence → Hypothesize → Fix → Verify). Has a 3-failure circuit breaker: after 3 failed hypotheses, stop and ask for direction.
+- **Planner** — Interview-driven planning that investigates the codebase first (never asks users about codebase facts). Produces 3-8 step plans with acceptance criteria. Never implements — always hands off to Implementer.
+- **Verifier** — Independent evidence-based completion checks. Runs tests/builds itself, verifies against acceptance criteria, and rejects claims without fresh output. Separate from Reviewer (verifies completion, not style).
 
 ### Skills
 

@@ -14,6 +14,11 @@
 - Match existing codebase patterns exactly.
 - Prioritize simplicity and maintainability.
 - Do not leave residue code after changes.
+- Prefer deletion over addition when the same behavior can be preserved.
+- Reuse existing utilities and patterns before introducing new ones.
+- No new dependencies without explicit user approval.
+- Keep diffs small, reversible, and easy to review.
+- Write a cleanup plan before modifying code during refactors.
 
 ## Stack
 
@@ -143,6 +148,9 @@
 |-------|---------|
 | `@Implementer` | Implements OpenSpec tasks one by one with built-in review gate |
 | `@Reviewer` | Read-only code reviewer checking conventions, specs, and bugs |
+| `@Debugger` | Root-cause analysis and minimal fixes for bugs and build errors |
+| `@Planner` | Interview-driven planning with codebase investigation |
+| `@Verifier` | Evidence-based completion checks — runs tests, validates acceptance criteria |
 
 ## Review Role
 
@@ -154,6 +162,36 @@ When asked to review changes:
   - Check if the implementation matches the spec tasks and requirements.
   - Highlight violations of architecture, naming, or i18n rules.
 - Prefer concise, actionable comments over big rewrites.
+
+## Commit Messages
+
+<!-- FILL: Adjust for your project's commit style. Delete if not applicable. -->
+
+Use conventional commit format. For non-trivial changes, include decision trailers:
+
+```
+fix(auth): prevent silent session drops during long-running ops
+
+Auth service returns inconsistent status codes on token expiry,
+so the interceptor catches all 4xx and triggers inline refresh.
+
+Constraint: Auth service does not support token introspection
+Rejected: Extend token TTL to 24h | security policy violation
+Confidence: high
+Not-tested: Cold-start latency >500ms
+```
+
+Trailer reference (include when applicable — skip for trivial commits):
+- `Constraint:` — active constraint that shaped this decision
+- `Rejected:` — alternative considered | reason for rejection
+- `Confidence:` — high | medium | low
+- `Not-tested:` — edge case or scenario not covered by tests
+
+## Workflow
+
+- **Broad request detection**: If a request is vague (no specific files, touches 3+ areas, single sentence without a clear deliverable), explore the codebase first, then plan. Don't jump to implementation.
+- **Separate authoring and review passes**: Keep writing and reviewing as separate activities. Never self-approve in the same context — use the Reviewer or Verifier agent.
+- **Stuck rule**: After 3 failed attempts at the same fix, stop and ask for direction. Do not try variation after variation of the same approach.
 
 ## Project-Specific Rules
 
