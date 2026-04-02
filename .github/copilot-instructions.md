@@ -19,6 +19,7 @@
 - No new dependencies without explicit user approval.
 - Keep diffs small, reversible, and easy to review.
 - Write a cleanup plan before modifying code during refactors.
+- **MANDATORY**: When a new ticket is pasted, ALWAYS run `@Planner` first (investigate codebase, interview user) before creating an OpenSpec proposal. The full sequence is: **Planner → Propose → Apply**. Never skip straight to proposal or implementation.
 
 ## Stack
 
@@ -189,6 +190,7 @@ Trailer reference (include when applicable — skip for trivial commits):
 
 ## Workflow
 
+- **Planner-first rule**: When a new ticket is pasted, invoke `@Planner` to investigate the codebase and interview the user before generating any OpenSpec artifacts. Full sequence: `@Planner` → `/opsx:propose` → `/opsx:apply`. Never skip the planning step.
 - **Broad request detection**: If a request is vague (no specific files, touches 3+ areas, single sentence without a clear deliverable), explore the codebase first, then plan. Don't jump to implementation.
 - **Separate authoring and review passes**: Keep writing and reviewing as separate activities. Never self-approve in the same context — use the Reviewer or Verifier agent.
 - **Stuck rule**: After 3 failed attempts at the same fix, stop and ask for direction. Do not try variation after variation of the same approach.
