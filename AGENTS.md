@@ -20,11 +20,12 @@ If `.github/copilot-instructions.md` has unfilled sections (marked `FILL` or `_T
 
 | Agent | Purpose |
 |-------|---------|
-| `@Implementer` | Implements OpenSpec tasks one by one with built-in review gate |
 | `@Reviewer` | Read-only code reviewer checking conventions, specs, and bugs |
 | `@Debugger` | Root-cause analysis and minimal fixes for bugs and build errors |
 | `@Planner` | Interview-driven planning with codebase investigation |
 | `@Verifier` | Evidence-based completion checks — runs tests, validates acceptance criteria |
 | `@Explore` | Fast read-only codebase search and Q&A — prefer over manual search chains |
+
+There is no separate `@Implementer` agent. The agent that plans and proposes also implements directly.
 
 For detailed conventions, see `.github/copilot-instructions.md`.
