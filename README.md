@@ -25,6 +25,8 @@ If the user says "read the README" or "set up my project", this is what they mea
 
 ```
 AGENTS.md                                    # Quick agent summary (Cursor/Windsurf compat)
+user/
+  brutal-honesty.instructions.md             # Global communication style (copy to VS Code user prompts)
 .github/
   copilot-instructions.md                    # Project conventions (single source of truth)
   agents/
@@ -33,6 +35,10 @@ AGENTS.md                                    # Quick agent summary (Cursor/Winds
     debugger.agent.md                        # Root-cause analysis and minimal fixes
     planner.agent.md                         # Interview-driven planning
     verifier.agent.md                        # Evidence-based completion checks
+    explore.agent.md                         # Fast read-only codebase search and Q&A
+  instructions/
+    testing.instructions.md                  # Test file conventions (applyTo: *.test.*)
+    styling.instructions.md                  # CSS/style file conventions (applyTo: *.css)
   skills/
     openspec-apply-change/SKILL.md           # Implement tasks with self-verification gate
     openspec-propose/SKILL.md                # Propose a change with all artifacts
@@ -57,23 +63,46 @@ cp -r .github/ /path/to/your-project/.github/
 cp -r openspec/ /path/to/your-project/openspec/
 ```
 
-Then ask Copilot: "Read the README and set up my project."
+Then ask Copilot: "Read the README and set up my project." (Requires Copilot Chat in agent mode.)
+
+### User-Level Communication Style (per machine — portable via this repo)
+
+The `user/brutal-honesty.instructions.md` file defines a global communication style (direct, evidence-based, scorecard format) that applies to ALL workspaces on a machine. Copy it to your VS Code user prompts folder:
+
+**Windows:**
+```powershell
+Copy-Item user/brutal-honesty.instructions.md "$env:APPDATA/Code/User/prompts/"
+```
+
+**macOS/Linux:**
+```bash
+cp user/brutal-honesty.instructions.md ~/.config/Code/User/prompts/
+```
+
+This only needs to be done once per machine. Since this file lives in the template repo, when you update it and `git pull` on another machine, just re-copy it.
+
+> **Note:** If you use VS Code Settings Sync, the `prompts/` folder is NOT synced automatically. The copy step is required on each machine.
 
 ## What's Included
 
 ### `.github/copilot-instructions.md` (template)
-The single source of truth for project conventions. Has `<!-- FILL -->` and `_TBD_` markers for: tech stack, commands, project structure, code style, naming, data layer, testing, API design, i18n, logging, security, and implementation safety rules. Copilot reads this automatically.
+The single source of truth for project conventions. Has `<!-- FILL -->` and `_TBD_` markers for: tech stack, commands, project structure, code style, naming, data layer, testing, API design, i18n, logging, security, and implementation safety rules. Includes a **Communication Style** section that enforces direct, evidence-based, severity-rated communication across all agents. Copilot reads this automatically.
+
+### `user/brutal-honesty.instructions.md`
+A VS Code user-level instruction file that applies the communication style globally (all workspaces, all conversations). Copy to your VS Code user prompts folder once per machine. This ensures the style follows you even in projects not bootstrapped from this template.
 
 ### `AGENTS.md` (template)
 A brief summary for multi-editor compatibility (Cursor, Windsurf, etc.). Points to `copilot-instructions.md` as the full reference.
 
+> **Why both files?** VS Code Copilot reads `.github/copilot-instructions.md` automatically. Cursor and Windsurf read `AGENTS.md` instead. Both files exist so the template works across editors. `copilot-instructions.md` is the source of truth; `AGENTS.md` is a thin pointer that avoids duplication.
+
 ### Agents
 
-- **Implementer** — Executes OpenSpec tasks methodically. Has Cardinal Rules (tasks.md is the work order, read before writing, never invent fields, make real edits), a Self-Verification Gate (feature inventory, i18n completeness, orphan check, API constraint check, spec text match), Completion Check, and structured Failure Modes To Avoid with good/bad examples.
+- **Implementer** — Executes OpenSpec tasks methodically. Has Cardinal Rules (tasks.md is the work order, read before writing, never invent fields, make real edits), a Verification Gate (feature inventory, i18n completeness, orphan check, API constraint check, spec text match, quality commands, no temp code), and structured Failure Modes To Avoid with good/bad examples.
 - **Reviewer** — Strict read-only code reviewer. Checks spec compliance, project conventions, data layer patterns, deep bugs (control flow, null paths, edge cases), simplicity, and cross-module impact. Evidence rule: every finding must include a verbatim quote from tool output.
 - **Debugger** — Root-cause analysis with a structured investigation protocol (Reproduce → Gather Evidence → Hypothesize → Fix → Verify). Has a 3-failure circuit breaker: after 3 failed hypotheses, stop and ask for direction.
 - **Planner** — Interview-driven planning that investigates the codebase first (never asks users about codebase facts). Produces 3-8 step plans with acceptance criteria. Never implements — always hands off to Implementer.
-- **Verifier** — Independent evidence-based completion checks. Runs tests/builds itself, verifies against acceptance criteria, and rejects claims without fresh output. Separate from Reviewer (verifies completion, not style).
+- **Verifier** — Independent evidence-based completion checks. Runs tests/builds itself, verifies against acceptance criteria, and rejects claims without fresh output. Uses sized verification (small/standard/large). Separate from Reviewer (verifies completion, not style).\n- **Explore** — Fast read-only codebase search and Q&A subagent. Supports quick/medium/thorough depth levels. Prefer over manually chaining search and file-read operations.\n\n### Instructions (file-based, conditional)\n\nFiles in `.github/instructions/` are loaded on-demand based on `applyTo` glob patterns:\n- **testing.instructions.md** — Loaded when editing `*.test.*` or `*.spec.*` files. Template with common test conventions (commented out — uncomment what applies).\n- **styling.instructions.md** — Loaded when editing `*.css` or `*.scss` files. Template with CSS/styling rules.
 
 ### Skills
 

@@ -1,6 +1,7 @@
 ---
 name: openspec-explore
 description: Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.
+argument-hint: Topic to explore — an idea, problem, change name, or comparison.
 license: MIT
 compatibility: Requires openspec CLI.
 metadata:
@@ -51,22 +52,8 @@ Depending on what the user brings, you might:
 - Recommend a path (if asked)
 
 **Visualize**
-```
-┌─────────────────────────────────────────┐
-│     Use ASCII diagrams liberally        │
-├─────────────────────────────────────────┤
-│                                         │
-│   ┌────────┐         ┌────────┐        │
-│   │ State  │────────▶│ State  │        │
-│   │   A    │         │   B    │        │
-│   └────────┘         └────────┘        │
-│                                         │
-│   System diagrams, state machines,      │
-│   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
-│                                         │
-└─────────────────────────────────────────┘
-```
+
+Use ASCII diagrams liberally — state machines, data flows, architecture sketches, dependency graphs, comparison tables. Create them contextually for the user's problem; don't reuse canned examples.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
@@ -145,56 +132,10 @@ If the user mentions a change or you detect one is relevant:
 
 ## Handling Different Entry Points
 
-**User brings a vague idea:**
-```
-User: I'm thinking about adding real-time collaboration
+**Vague idea** — Map the solution space visually (e.g., spectrum diagram), then ask where their head is at.
 
-You: Real-time collab is a big space. Let me think about this...
+**Specific problem** — Read the relevant code, sketch what you find (e.g., current flow diagram), then surface the tangles and ask which one's burning.
 
-      COLLABORATION SPECTRUM
-      ════════════════════════════════════════════
+**Comparing options** — Build a tradeoff table or side-by-side diagram, let the user react.
 
-      Awareness          Coordination         Sync
-          │                   │                 │
-          ▼                   ▼                 ▼
-      ┌────────┐         ┌────────┐        ┌────────┐
-      │Presence│         │Cursors │        │  CRDT  │
-      │  "3    │         │ Multi  │        │Conflict│
-      │online" │         │ select │        │  free  │
-      └────────┘         └────────┘        └────────┘
-          │                   │                 │
-       trivial            moderate           complex
-
-      Where's your head at?
-```
-
-**User brings a specific problem:**
-```
-User: The auth system is a mess
-
-You: [reads codebase]
-
-     ┌─────────────────────────────────────────────┐
-     │              CURRENT AUTH FLOW              │
-     └─────────────────────────────────────────────┘
-                        │
-          ┌─────────────┼─────────────┐
-          ▼             ▼             ▼
-     ┌─────────┐  ┌─────────┐  ┌─────────┐
-     │ Google  │  │  GitHub │  │  Email  │
-     │  OAuth  │  │  OAuth  │  │  Magic  │
-     └────┬────┘  └────┬────┘  └────┬────┘
-          │             │             │
-          └─────────────┼─────────────┘
-                        ▼
-                  ┌───────────┐
-                  │  Session  │
-                  └─────┬─────┘
-                        │
-                        ▼
-                  ┌───────────┐
-                  │   Perms   │
-                  └───────────┘
-
-     I see three tangles. Which one's burning?
-```
+Create contextual diagrams for whatever the user brings. Don't copy canned examples.

@@ -1,6 +1,7 @@
 ---
 name: openspec-archive-change
 description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.
+argument-hint: Change name to archive. If omitted, will prompt for selection.
 license: MIT
 compatibility: Requires openspec CLI.
 metadata:
