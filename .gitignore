@@ -14,5 +14,9 @@ Thumbs.db
 .env
 .env.local
 
+# Override global gitignore — include Claude Code files in this repo
+!.claude/
+!CLAUDE.md
+
 # OpenSpec change archives (optional — uncomment to ignore)
 # openspec/changes/archive/
