@@ -12,7 +12,7 @@ When working on this codebase:
 - **Where things live**: <!-- FILL: Brief structure summary -->
 - **Quality**: Use the project logger (no console.log), toast/notifications for user feedback, and follow code style rules.
 - **Communication**: All agents use a direct, evidence-based, no-sugar-coating style. Every finding cites `file:line` with verbatim quotes and severity ratings. Audits end with a scorecard. See the Communication Style section in `.github/copilot-instructions.md`.
-- **Workflow**: If a request is vague (no specific files, touches 3+ areas), explore first then plan. Keep authoring and review as separate passes. After 3 failed attempts, stop and ask.
+- **Workflow**: Before any non-trivial implementation, follow Plan → Propose (OpenSpec) → Apply → Quality Gates → Review Gate → Done. Skip planning when review output already exists in conversation. Skip the entire workflow for trivial single-file fixes. After 3 failed attempts, stop and ask.
 
 If `.github/copilot-instructions.md` has unfilled sections (marked `FILL` or `_TBD_`), ask the user to provide the missing info before coding.
 

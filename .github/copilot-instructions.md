@@ -23,7 +23,10 @@
 - Write a cleanup plan before modifying code during refactors.
 - Verify outcomes with evidence before claiming completion. "It should work" is not verification.
 - Run quality gates (lint, typecheck, tests) after changes — don’t assume they pass.
-- **MANDATORY**: When a new ticket is pasted, ALWAYS run `@Planner` first (investigate codebase, interview user) before creating an OpenSpec proposal. The full sequence is: **Planner → Propose → Apply**. Never skip straight to proposal or implementation.
+- **MANDATORY**: Before any non-trivial implementation, follow: **Plan → Propose → Apply**. Never skip straight to implementation.
+  - **New tickets, unclear requirements**: run `@Planner` first (investigate codebase, interview user) before creating an OpenSpec proposal.
+  - **Review findings, refactors with clear scope**: skip `@Planner` — the review output IS the investigation. Go straight to OpenSpec proposal.
+  - OpenSpec uses a single `proposal.md` (Why, Goals/Non-Goals, Decisions, Impact, Risks) — no separate `design.md`. Keep `tasks.md` coarse: group mechanical changes by logical unit, not per-file.
 
 ## Communication Style
 
@@ -184,12 +187,13 @@ Audits and deep reviews cover these dimensions (skip categories that don't apply
 
 | Agent | Purpose |
 |-------|---------|
-| `@Implementer` | Implements OpenSpec tasks one by one with built-in review gate |
 | `@Reviewer` | Read-only code reviewer checking conventions, specs, and bugs |
 | `@Debugger` | Root-cause analysis and minimal fixes for bugs and build errors |
 | `@Planner` | Interview-driven planning with codebase investigation |
 | `@Verifier` | Evidence-based completion checks — runs tests, validates acceptance criteria |
 | `@Explore` | Fast read-only codebase search and Q&A — prefer over manual search chains |
+
+There is no separate `@Implementer` agent. The agent that plans and proposes also implements directly.
 
 ## Review Role
 
@@ -231,7 +235,7 @@ Trailer reference (include when applicable — skip for trivial commits):
 
 ## Workflow
 
-- **Planner-first rule**: When a new ticket is pasted, invoke `@Planner` to investigate the codebase and interview the user before generating any OpenSpec artifacts. Full sequence: `@Planner` → `/opsx:propose` → `/opsx:apply`. Never skip the planning step.
+- **Plan → Propose → Apply**: Before any non-trivial implementation, run `@Planner` (investigate codebase, interview user) → create OpenSpec proposal → implement. Skip `@Planner` when review output already exists in conversation — go straight to proposal.
 - **Broad request detection**: If a request is vague (no specific files, touches 3+ areas, single sentence without a clear deliverable), explore the codebase first, then plan. Don't jump to implementation.
 - **Separate authoring and review passes**: Keep writing and reviewing as separate activities. Never self-approve in the same context — use the Reviewer or Verifier agent.
 - **Stuck rule**: After 3 failed attempts at the same fix, stop and ask for direction. Do not try variation after variation of the same approach.
@@ -247,7 +251,6 @@ When another agent would handle part of the task better:
 
 | Situation | Suggest to user |
 |-----------|-----------------|
-| Multi-file implementation or refactor | `@Implementer` |
 | Code review or convention checking | `@Reviewer` |
 | Bug investigation, build errors | `@Debugger` |
 | New ticket or unclear requirements | `@Planner` |

@@ -30,7 +30,6 @@ user/
 .github/
   copilot-instructions.md                    # Project conventions (single source of truth)
   agents/
-    implementer.agent.md                     # OpenSpec task implementer with review gate
     reviewer.agent.md                        # Strict code reviewer agent
     debugger.agent.md                        # Root-cause analysis and minimal fixes
     planner.agent.md                         # Interview-driven planning
@@ -98,11 +97,19 @@ A brief summary for multi-editor compatibility (Cursor, Windsurf, etc.). Points 
 
 ### Agents
 
-- **Implementer** — Executes OpenSpec tasks methodically. Has Cardinal Rules (tasks.md is the work order, read before writing, never invent fields, make real edits), a Verification Gate (feature inventory, i18n completeness, orphan check, API constraint check, spec text match, quality commands, no temp code), and structured Failure Modes To Avoid with good/bad examples.
+There is no separate `@Implementer` agent. The agent that plans and proposes also implements directly.
+
 - **Reviewer** — Strict read-only code reviewer. Checks spec compliance, project conventions, data layer patterns, deep bugs (control flow, null paths, edge cases), simplicity, and cross-module impact. Evidence rule: every finding must include a verbatim quote from tool output.
 - **Debugger** — Root-cause analysis with a structured investigation protocol (Reproduce → Gather Evidence → Hypothesize → Fix → Verify). Has a 3-failure circuit breaker: after 3 failed hypotheses, stop and ask for direction.
-- **Planner** — Interview-driven planning that investigates the codebase first (never asks users about codebase facts). Produces 3-8 step plans with acceptance criteria. Never implements — always hands off to Implementer.
-- **Verifier** — Independent evidence-based completion checks. Runs tests/builds itself, verifies against acceptance criteria, and rejects claims without fresh output. Uses sized verification (small/standard/large). Separate from Reviewer (verifies completion, not style).\n- **Explore** — Fast read-only codebase search and Q&A subagent. Supports quick/medium/thorough depth levels. Prefer over manually chaining search and file-read operations.\n\n### Instructions (file-based, conditional)\n\nFiles in `.github/instructions/` are loaded on-demand based on `applyTo` glob patterns:\n- **testing.instructions.md** — Loaded when editing `*.test.*` or `*.spec.*` files. Template with common test conventions (commented out — uncomment what applies).\n- **styling.instructions.md** — Loaded when editing `*.css` or `*.scss` files. Template with CSS/styling rules.
+- **Planner** — Interview-driven planning that investigates the codebase first (never asks users about codebase facts). Produces 3-8 step plans with acceptance criteria. Never implements — hands off to `/opsx:propose` → `/opsx:apply`.
+- **Verifier** — Independent evidence-based completion checks. Runs tests/builds itself, verifies against acceptance criteria, and rejects claims without fresh output. Uses sized verification (small/standard/large). Separate from Reviewer (verifies completion, not style).
+- **Explore** — Fast read-only codebase search and Q&A subagent. Supports quick/medium/thorough depth levels. Prefer over manually chaining search and file-read operations.
+
+### Instructions (file-based, conditional)
+
+Files in `.github/instructions/` are loaded on-demand based on `applyTo` glob patterns:
+- **testing.instructions.md** — Loaded when editing `*.test.*` or `*.spec.*` files. Template with common test conventions (commented out — uncomment what applies).
+- **styling.instructions.md** — Loaded when editing `*.css` or `*.scss` files. Template with CSS/styling rules.
 
 ### Skills
 
@@ -121,7 +128,8 @@ Default `spec-driven` schema with commented examples for project context and per
 
 ## Workflow
 
-1. **Propose**: Describe what you want to build → `/opsx:propose add-dark-mode`
-2. **Explore** (optional): Think through problems → `/opsx:explore`
-3. **Implement**: Work through tasks → `/opsx:apply`
-4. **Archive**: Finalize when done → `/opsx:archive`
+1. **Plan** (when needed): New ticket or unclear requirements → `@Planner` investigates and interviews. Skip when review findings already exist or scope is clear.
+2. **Propose**: Create OpenSpec with `proposal.md`, specs, and `tasks.md` → `/opsx:propose add-dark-mode`
+3. **Explore** (optional): Think through problems → `/opsx:explore`
+4. **Implement**: Work through tasks → `/opsx:apply`. Includes quality gates, review gate, and finalization.
+5. **Archive**: Finalize when done → `/opsx:archive`

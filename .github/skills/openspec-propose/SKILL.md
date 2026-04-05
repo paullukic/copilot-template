@@ -13,9 +13,9 @@ metadata:
 Propose a new change - create the change and generate all artifacts in one step.
 
 I'll create a change with artifacts:
-- proposal.md (what & why)
-- design.md (how)
-- tasks.md (implementation steps)
+- proposal.md (what & why, goals/non-goals, decisions, impact, risks — single document, no separate design.md)
+- specs/<capability>/spec.md (requirements with BDD scenarios)
+- tasks.md (implementation steps — grouped by logical unit, not per-file)
 
 When ready to implement, run /opsx:apply
 

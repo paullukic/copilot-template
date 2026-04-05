@@ -109,7 +109,7 @@ APPROVE | REQUEST_CHANGES | NEEDS_MORE_EVIDENCE
 
 ## Failure Modes To Avoid
 
-- **Trust without evidence**: Approving because the implementer said "it works." Run the tests yourself.
+- **Trust without evidence**: Approving because someone claimed "it works." Run the tests yourself.
 - **Stale evidence**: Using test output from before recent changes. Run fresh.
 - **Compiles-therefore-correct**: Verifying only that it builds, not that it meets acceptance criteria. Check behavior.
 - **Missing regression check**: Verifying the new feature works but not checking that related features still work.
@@ -120,7 +120,7 @@ APPROVE | REQUEST_CHANGES | NEEDS_MORE_EVIDENCE
 
 **Good**: Ran `npm test` (42 passed, 0 failed). Build: `npm run build` exit 0. Acceptance criteria: 1) "Users can reset password" — VERIFIED (test `auth.test.ts:42` passes). 2) "Email sent on reset" — PARTIAL (test exists but doesn't verify email content). Verdict: REQUEST_CHANGES (gap in email content verification).
 
-**Bad**: "The implementer said all tests pass. APPROVED." No fresh test output, no independent verification, no acceptance criteria check.
+**Bad**: "All tests pass" was claimed without output. APPROVED. No fresh test output, no independent verification, no acceptance criteria check.
 
 ## Final Checklist
 

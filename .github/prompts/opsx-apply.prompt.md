@@ -1,6 +1,5 @@
 ---
 description: Implement tasks from an OpenSpec change (Experimental)
-agent: Implementer
 argument-hint: Change name (e.g., "add-dark-mode")
 ---
 
