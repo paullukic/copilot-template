@@ -2,6 +2,25 @@
 
 Reusable VS Code Copilot customization files for any project. Includes agents, skills, and prompts for an OpenSpec-driven development workflow.
 
+## Which Tool for What
+
+This template works with both **Claude Code** and **VS Code Copilot**. Each has different strengths:
+
+### Claude Code — use for implementation work
+
+Describe the task in one message. Claude Code reads `CLAUDE.md`, follows the full workflow (Plan → Propose → Apply → Quality Gates → Review Gate → Done) in a single conversation with no manual switching. Best for:
+- New features, multi-file refactors, bug fixes
+- Any task that goes through the full Plan → Propose → Apply workflow
+- Continuing work from a previous session (reads OpenSpec `tasks.md` automatically)
+
+### VS Code Copilot — use agents as single-purpose tools
+
+The agents work best when invoked directly for a specific job, not as a multi-step orchestrated workflow. Agent-to-agent handoffs require manual switching (by design — subagents don't receive their `.agent.md` tools). Best for:
+- `@Reviewer` — quick code reviews while you're in the editor
+- `@Explore` — fast codebase Q&A and search
+- `@Debugger` — investigating errors you're staring at in the terminal
+- `@Planner` → `/opsx:propose` → `/opsx:apply` — full workflow (works, but requires 3-4 manual handoffs)
+
 ## For Copilot: Bootstrap Instructions
 
 When a user adds this template to a new project and asks you to set it up:
@@ -114,7 +133,7 @@ Files in `.github/instructions/` are loaded on-demand based on `applyTo` glob pa
 ### Skills
 
 - **openspec-apply-change** — Implements tasks from an OpenSpec change with auto-review gate and self-verification.
-- **openspec-propose** — Creates a change and generates all artifacts (proposal, design, tasks) in one step.
+- **openspec-propose** — Creates a change and generates all artifacts (proposal, specs, tasks) in one step.
 - **openspec-explore** — Thinking partner mode for exploring ideas, investigating problems, and clarifying requirements. Read-only — never implements code.
 - **openspec-archive-change** — Archives completed changes with delta spec sync assessment.
 
