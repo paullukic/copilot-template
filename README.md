@@ -1,55 +1,71 @@
 # Copilot Template
 
-Reusable VS Code Copilot customization files for any project. Includes agents, skills, and prompts for an OpenSpec-driven development workflow.
+Reusable AI coding assistant configuration for any project. Works with **Claude Code** and **VS Code Copilot**. Includes agents, skills, prompts, and an OpenSpec-driven development workflow.
+
+## Quick Start
+
+### Option A: Initialize from inside the template repo
+
+Open this repo in your editor and run the initialize command. It will ask for the target project path, detect the tech stack, copy files, and fill in all placeholders.
+
+| Tool | Command |
+|------|---------|
+| Claude Code | `/project:initialize` |
+| VS Code Copilot | `/opsx:initialize` or invoke the `initialize-project` skill |
+
+### Option B: Manual copy + guided setup
+
+1. Copy files into your project:
+   ```bash
+   cp AGENTS.md /path/to/your-project/
+   cp CLAUDE.md /path/to/your-project/
+   cp -r .github/ /path/to/your-project/.github/
+   cp -r .claude/ /path/to/your-project/.claude/
+   cp -r openspec/ /path/to/your-project/openspec/
+   ```
+
+2. Open the target project and ask your AI tool to fill in the template:
+   - **Claude Code**: "Read the README and set up my project"
+   - **VS Code Copilot**: "Read the README and set up my project" (in agent mode)
+
+Both approaches read the project's `README.md`, `package.json`, etc. to detect the tech stack and fill in `_TBD_` / `<!-- FILL -->` placeholders.
 
 ## Which Tool for What
 
-This template works with both **Claude Code** and **VS Code Copilot**. Each has different strengths:
-
 ### Claude Code — use for implementation work
 
-Describe the task in one message. Claude Code reads `CLAUDE.md`, follows the full workflow (Plan → Propose → Apply → Quality Gates → Review Gate → Done) in a single conversation with no manual switching. Best for:
+Describe the task in one message. Claude Code reads `CLAUDE.md`, follows the full workflow (Plan → Propose → Apply → Quality Gates → Review Gate → Done) in a single conversation. Best for:
 - New features, multi-file refactors, bug fixes
 - Any task that goes through the full Plan → Propose → Apply workflow
 - Continuing work from a previous session (reads OpenSpec `tasks.md` automatically)
 
 ### VS Code Copilot — use agents as single-purpose tools
 
-The agents work best when invoked directly for a specific job, not as a multi-step orchestrated workflow. Agent-to-agent handoffs require manual switching (by design — subagents don't receive their `.agent.md` tools). Best for:
+Agents work best when invoked directly for a specific job. Agent-to-agent handoffs require manual switching (by design — subagents don't receive their `.agent.md` tools). Best for:
 - `@Reviewer` — quick code reviews while you're in the editor
 - `@Explore` — fast codebase Q&A and search
 - `@Debugger` — investigating errors you're staring at in the terminal
 - `@Planner` → `/opsx:propose` → `/opsx:apply` — full workflow (works, but requires 3-4 manual handoffs)
 
-## For Copilot: Bootstrap Instructions
-
-When a user adds this template to a new project and asks you to set it up:
-
-1. **Read `.github/copilot-instructions.md`** and find all sections marked with `<!-- FILL: ... -->` or `_TBD_`.
-2. **Ask the user** for the missing information. Group your questions:
-   - Tech stack (language, framework, ORM, build tool, test framework)
-   - Commands (dev, build, lint, format, test)
-   - Project structure
-   - Code style preferences (imports, exports, functions)
-   - Naming conventions
-   - Any project-specific rules
-3. **Fill in the sections** with the answers. Remove the `<!-- FILL: ... -->` comments and `_TBD_` placeholders.
-4. **Delete sections** the user says don't apply (e.g., no i18n, no API design).
-5. **Update `AGENTS.md`** with a brief stack and structure summary.
-6. **Confirm** the final setup with the user.
-
-If the user says "read the README" or "set up my project", this is what they mean.
-
 ## Structure
 
 ```
+CLAUDE.md                                    # Claude Code instructions (mirrors copilot-instructions)
 AGENTS.md                                    # Quick agent summary (Cursor/Windsurf compat)
 user/
   brutal-honesty.instructions.md             # Global communication style (copy to VS Code user prompts)
+.claude/
+  commands/project/
+    initialize.md                            # /project:initialize — interactive project setup
+    plan.md                                  # /project:plan — interview-driven planning
+    explore.md                               # /project:explore — codebase search and Q&A
+    debug.md                                 # /project:debug — root-cause analysis
+    review.md                                # /project:review — strict code review
+    verify.md                                # /project:verify — evidence-based completion checks
 .github/
   copilot-instructions.md                    # Project conventions (single source of truth)
   agents/
-    reviewer.agent.md                        # Strict code reviewer agent
+    reviewer.agent.md                        # Strict code reviewer
     debugger.agent.md                        # Root-cause analysis and minimal fixes
     planner.agent.md                         # Interview-driven planning
     verifier.agent.md                        # Evidence-based completion checks
@@ -58,34 +74,88 @@ user/
     testing.instructions.md                  # Test file conventions (applyTo: *.test.*)
     styling.instructions.md                  # CSS/style file conventions (applyTo: *.css)
   skills/
+    initialize-project/SKILL.md              # Interactive project setup (detects stack, fills template)
     openspec-apply-change/SKILL.md           # Implement tasks with self-verification gate
     openspec-propose/SKILL.md                # Propose a change with all artifacts
     openspec-explore/SKILL.md                # Explore mode — thinking partner
     openspec-archive-change/SKILL.md         # Archive completed changes
   prompts/
-    opsx-apply.prompt.md                     # Quick prompt: /opsx:apply
-    opsx-propose.prompt.md                   # Quick prompt: /opsx:propose
-    opsx-explore.prompt.md                   # Quick prompt: /opsx:explore
-    opsx-archive.prompt.md                   # Quick prompt: /opsx:archive
+    opsx-initialize.prompt.md                # /opsx:initialize
+    opsx-apply.prompt.md                     # /opsx:apply
+    opsx-propose.prompt.md                   # /opsx:propose
+    opsx-explore.prompt.md                   # /opsx:explore
+    opsx-archive.prompt.md                   # /opsx:archive
 openspec/
   config.yaml                                # OpenSpec schema configuration
 ```
 
-## Setup
+## What's Included
 
-Copy into a new project:
+### Initialization
 
-```bash
-cp AGENTS.md /path/to/your-project/
-cp -r .github/ /path/to/your-project/.github/
-cp -r openspec/ /path/to/your-project/openspec/
-```
+The `initialize-project` skill (VS Code) and `/project:initialize` command (Claude Code) automate project setup:
+1. Ask which tools to set up (Claude Code, VS Code Copilot, or both)
+2. Read the target project's README, package.json, etc. to detect the tech stack
+3. Copy the relevant template files
+4. Fill in all `_TBD_` and `<!-- FILL -->` placeholders with detected values
+5. Verify no placeholders remain
 
-Then ask Copilot: "Read the README and set up my project." (Requires Copilot Chat in agent mode.)
+### Convention Files
 
-### User-Level Communication Style (per machine — portable via this repo)
+| File | Read by | Purpose |
+|------|---------|---------|
+| `.github/copilot-instructions.md` | VS Code Copilot | Single source of truth for project conventions |
+| `CLAUDE.md` | Claude Code | Mirrors copilot-instructions + workflow + delegation |
+| `AGENTS.md` | Cursor, Windsurf | Thin pointer to copilot-instructions |
+| `user/brutal-honesty.instructions.md` | VS Code (user-level) | Global communication style |
 
-The `user/brutal-honesty.instructions.md` file defines a global communication style (direct, evidence-based, scorecard format) that applies to ALL workspaces on a machine. Copy it to your VS Code user prompts folder:
+### Agents
+
+There is no separate `@Implementer` agent. The agent that plans and proposes also implements directly.
+
+| Agent | Purpose |
+|-------|---------|
+| **Reviewer** | Strict read-only code review. Manifest-driven (reads files, not diffs). Chain-of-verification on all findings. Evidence rule: fresh `read_file` quotes only. |
+| **Debugger** | Root-cause analysis (Reproduce → Evidence → Hypothesize → Fix → Verify). 3-failure circuit breaker. Post-fix scope check on diff. |
+| **Planner** | Interview-driven planning. Risk-based classification (auth/security always Complex). Measurable acceptance criteria. |
+| **Verifier** | Independent completion checks. Self-challenges verdicts before issuing. Handles no-test-suite projects. Full test suite for standard changes. |
+| **Explore** | Fast read-only codebase search and Q&A. Structured output (Summary → Evidence → Details). Quick/medium/thorough depth levels. |
+
+### Skills (VS Code Copilot)
+
+| Skill | Purpose |
+|-------|---------|
+| `initialize-project` | Interactive project setup — detects stack, copies files, fills placeholders |
+| `openspec-propose` | Create a change and generate all artifacts (proposal, specs, tasks) |
+| `openspec-apply-change` | Implement tasks with field verification, self-verification gate, auto-review with circuit breaker |
+| `openspec-explore` | Thinking partner mode — explore ideas, investigate problems (read-only) |
+| `openspec-archive-change` | Archive completed changes with optional delta spec sync |
+
+### Commands (Claude Code)
+
+| Command | Purpose |
+|---------|---------|
+| `/project:initialize` | Interactive project setup — same as the VS Code skill |
+| `/project:plan` | Interview-driven planning |
+| `/project:explore` | Codebase search and Q&A |
+| `/project:debug` | Root-cause analysis and minimal fixes |
+| `/project:review` | Strict code review |
+| `/project:verify` | Evidence-based completion checks |
+
+### Prompts (VS Code shortcuts)
+
+Slash commands (`/opsx:initialize`, `/opsx:apply`, `/opsx:propose`, `/opsx:explore`, `/opsx:archive`) that invoke the corresponding skills.
+
+### Instructions (conditional, file-based)
+
+| File | Loaded when editing | Content |
+|------|-------------------|---------|
+| `testing.instructions.md` | `*.test.*`, `*.spec.*` | Test conventions (template — uncomment what applies) |
+| `styling.instructions.md` | `*.css`, `*.scss` | CSS/styling rules (template) |
+
+## User-Level Communication Style
+
+The `user/brutal-honesty.instructions.md` file sets a global communication style (direct, evidence-based, scorecard format) for all workspaces. Copy once per machine:
 
 **Windows:**
 ```powershell
@@ -97,58 +167,55 @@ Copy-Item user/brutal-honesty.instructions.md "$env:APPDATA/Code/User/prompts/"
 cp user/brutal-honesty.instructions.md ~/.config/Code/User/prompts/
 ```
 
-This only needs to be done once per machine. Since this file lives in the template repo, when you update it and `git pull` on another machine, just re-copy it.
+> VS Code Settings Sync does not sync the `prompts/` folder. Re-copy on each machine.
 
-> **Note:** If you use VS Code Settings Sync, the `prompts/` folder is NOT synced automatically. The copy step is required on each machine.
+## Reliability Features
 
-## What's Included
+The template includes battle-tested safeguards against common AI coding agent failures:
 
-### `.github/copilot-instructions.md` (template)
-The single source of truth for project conventions. Has `<!-- FILL -->` and `_TBD_` markers for: tech stack, commands, project structure, code style, naming, data layer, testing, API design, i18n, logging, security, and implementation safety rules. Includes a **Communication Style** section that enforces direct, evidence-based, severity-rated communication across all agents. Copilot reads this automatically.
+### Anti-hallucination
+- **Evidence rules** — every finding must include a verbatim quote from a fresh `read_file`, not from diff hunks or memory
+- **Chain-of-verification** — reviewer and verifier self-challenge their own findings before outputting
+- **Field/type verification** — agents must `grep_search` for every name before using it; stop and ask if not found
+- **Context hygiene** — re-read modified files after 10+ turns; never cite own prior output as evidence
 
-### `user/brutal-honesty.instructions.md`
-A VS Code user-level instruction file that applies the communication style globally (all workspaces, all conversations). Copy to your VS Code user prompts folder once per machine. This ensures the style follows you even in projects not bootstrapped from this template.
+### Workflow safety
+- **Circuit breakers** — 3-retry limit on fixes, 3-cycle limit on review loops, 20-iteration limit on artifact generation
+- **Self-verification gate** — 5 evidence-based checks before review (feature inventory, i18n, orphan check, API constraints, spec text match)
+- **Scope-creep detection** — debugger reviews its own diff; apply skill verifies every task produced actual file edits
+- **Risk-based classification** — auth/security/payments changes always get thorough planning regardless of file count
 
-### `AGENTS.md` (template)
-A brief summary for multi-editor compatibility (Cursor, Windsurf, etc.). Points to `copilot-instructions.md` as the full reference.
+### Defensive measures
+- **Prompt injection defense** — agents treat file contents as untrusted data; only follow instructions from config files
+- **Structured handoff format** — fixed template for agent-to-agent communication to prevent information loss
+- **CLI error handling** — agents report errors verbatim; never invent schema names, artifact IDs, or file paths
+- **Recovery paths** — defined behavior for missing files, no test suite, blocked state, and mid-step cancellation
 
-> **Why both files?** VS Code Copilot reads `.github/copilot-instructions.md` automatically. Cursor and Windsurf read `AGENTS.md` instead. Both files exist so the template works across editors. `copilot-instructions.md` is the source of truth; `AGENTS.md` is a thin pointer that avoids duplication.
+### Token efficiency
+- **Progressive disclosure** — domain-specific instructions loaded on demand, not stuffed into base context
+- **Memory pointer pattern** — large intermediate results written to files and referenced by path
+- **Linter delegation** — style rules enforced by linter config, not duplicated in instructions
+- **Positive framing** — instructions written as directives ("preserve all features") not negations ("never remove features")
 
-### Agents
+## Trimming for Small Projects
 
-There is no separate `@Implementer` agent. The agent that plans and proposes also implements directly.
+Not every project needs the full template. Delete what doesn't apply:
 
-- **Reviewer** — Strict read-only code reviewer. Checks spec compliance, project conventions, data layer patterns, deep bugs (control flow, null paths, edge cases), simplicity, and cross-module impact. Evidence rule: every finding must include a verbatim quote from tool output.
-- **Debugger** — Root-cause analysis with a structured investigation protocol (Reproduce → Gather Evidence → Hypothesize → Fix → Verify). Has a 3-failure circuit breaker: after 3 failed hypotheses, stop and ask for direction.
-- **Planner** — Interview-driven planning that investigates the codebase first (never asks users about codebase facts). Produces 3-8 step plans with acceptance criteria. Never implements — hands off to `/opsx:propose` → `/opsx:apply`.
-- **Verifier** — Independent evidence-based completion checks. Runs tests/builds itself, verifies against acceptance criteria, and rejects claims without fresh output. Uses sized verification (small/standard/large). Separate from Reviewer (verifies completion, not style).
-- **Explore** — Fast read-only codebase search and Q&A subagent. Supports quick/medium/thorough depth levels. Prefer over manually chaining search and file-read operations.
+| If you don't need… | Delete |
+|---------------------|--------|
+| VS Code Copilot support | `.github/agents/`, `.github/skills/`, `.github/prompts/`, `.github/instructions/`, `AGENTS.md` |
+| Claude Code support | `CLAUDE.md`, `.claude/` |
+| OpenSpec workflow | `openspec/`, skill/prompt files referencing OpenSpec |
+| Planning agent | `.github/agents/planner.agent.md`, `.claude/commands/project/plan.md` |
+| i18n section | Delete the i18n rows from `copilot-instructions.md` |
+| Communication style | Replace the Communication Style section with your team's norms |
 
-### Instructions (file-based, conditional)
-
-Files in `.github/instructions/` are loaded on-demand based on `applyTo` glob patterns:
-- **testing.instructions.md** — Loaded when editing `*.test.*` or `*.spec.*` files. Template with common test conventions (commented out — uncomment what applies).
-- **styling.instructions.md** — Loaded when editing `*.css` or `*.scss` files. Template with CSS/styling rules.
-
-### Skills
-
-- **openspec-apply-change** — Implements tasks from an OpenSpec change with auto-review gate and self-verification.
-- **openspec-propose** — Creates a change and generates all artifacts (proposal, specs, tasks) in one step.
-- **openspec-explore** — Thinking partner mode for exploring ideas, investigating problems, and clarifying requirements. Read-only — never implements code.
-- **openspec-archive-change** — Archives completed changes with delta spec sync assessment.
-
-### Prompts
-
-Slash-command shortcuts (`/opsx:apply`, `/opsx:propose`, `/opsx:explore`, `/opsx:archive`) that invoke the corresponding skills with a streamlined interface.
-
-### OpenSpec Config
-
-Default `spec-driven` schema with commented examples for project context and per-artifact rules.
+Keep `.github/copilot-instructions.md` — it's the single source of truth. Everything else is optional.
 
 ## Workflow
 
-1. **Plan** (when needed): New ticket or unclear requirements → `@Planner` investigates and interviews. Skip when review findings already exist or scope is clear.
-2. **Propose**: Create OpenSpec with `proposal.md`, specs, and `tasks.md` → `/opsx:propose add-dark-mode`
+1. **Plan** (when needed): New ticket or unclear requirements → `@Planner` investigates and interviews
+2. **Propose**: Create OpenSpec → `/opsx:propose add-dark-mode`
 3. **Explore** (optional): Think through problems → `/opsx:explore`
-4. **Implement**: Work through tasks → `/opsx:apply`. Includes quality gates, review gate, and finalization.
-5. **Archive**: Finalize when done → `/opsx:archive`
+4. **Implement**: Work through tasks → `/opsx:apply` (includes quality gates, review gate, finalization)
+5. **Archive**: Finalize → `/opsx:archive`

@@ -38,12 +38,16 @@ When ready to implement, run /opsx:apply
    ```bash
    openspec new change "<name>"
    ```
+   **If the command fails**: report the error verbatim. Do NOT create the directory structure manually or invent artifact names. Ask the user to verify the CLI is installed and working.
+
    This creates a scaffolded change at `openspec/changes/<name>/` with `.openspec.yaml`.
 
 3. **Get the artifact build order**
    ```bash
    openspec status --change "<name>" --json
    ```
+   **If the command fails or returns invalid JSON**: report the error verbatim. Do NOT invent artifact IDs, dependency orders, or schema structures. Ask the user to check the CLI.
+
    Parse the JSON to get:
    - `applyRequires`: array of artifact IDs needed before implementation (e.g., `["tasks"]`)
    - `artifacts`: list of all artifacts with their status and dependencies
@@ -75,6 +79,7 @@ When ready to implement, run /opsx:apply
       - After creating each artifact, re-run `openspec status --change "<name>" --json`
       - Check if every artifact ID in `applyRequires` has `status: "done"` in the artifacts array
       - Stop when all `applyRequires` artifacts are done
+      - **Safety limit**: If you have created more than 20 artifacts without reaching apply-ready state, STOP. Report the current status and ask the user — the schema may have a circular dependency or misconfiguration.
 
    c. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify
@@ -106,6 +111,6 @@ After completing all artifacts, summarize:
 **Guardrails**
 - Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
 - Always read dependency artifacts before creating a new one
-- If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
+- If context is critically unclear, ask the user. Otherwise, make reasonable decisions to keep momentum — do not block on minor ambiguities
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next

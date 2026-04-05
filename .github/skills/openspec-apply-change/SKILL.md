@@ -29,6 +29,8 @@ Implement tasks from an OpenSpec change.
    ```bash
    openspec status --change "<name>" --json
    ```
+   **If the command fails or returns invalid JSON**: report the error verbatim to the user. Do NOT invent schema names, artifact names, or task structures. Ask the user to verify the change exists and the CLI is installed.
+
    Parse the JSON to understand:
    - `schemaName`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
@@ -38,6 +40,7 @@ Implement tasks from an OpenSpec change.
    ```bash
    openspec instructions apply --change "<name>" --json
    ```
+   **If the command fails or returns invalid JSON**: report the error verbatim. Do NOT guess at context file paths or task structures.
 
    This returns:
    - Context file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
@@ -46,13 +49,16 @@ Implement tasks from an OpenSpec change.
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show message, suggest using openspec-continue-change
+   - If `state: "blocked"` (missing artifacts): show which artifacts are missing, then suggest the user run `/opsx:propose` to create them
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
 4. **Read context files**
 
-   Read the files listed in `contextFiles` from the apply instructions output.
+   For each file in `contextFiles`, run `read_file` to confirm it exists on disk.
+   - **If a file is missing**: report which file and its expected path. PAUSE and ask the user for the correct location or whether to proceed without it. Do NOT confabulate file contents. **Recovery**: once the user provides a corrected path or says to proceed without it, continue from this step — do not restart the skill from the beginning.
+   - **If all files exist**: read them for context.
+
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, tasks
    - Other schemas: follow the contextFiles from CLI output
@@ -65,17 +71,26 @@ Implement tasks from an OpenSpec change.
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-6. **Implement tasks (loop until done or blocked)**
+6. **Classify change size** (determines which steps to run)
+
+   Count total lines changed across all tasks (estimate from task descriptions and file reads).
+   - **Quick** (≤3 tasks AND ≤50 lines changed, no new files created): Run steps 7 → 10 → 11 (skip self-verification gate and auto-review).
+   - **Standard** (everything else): Run all steps 7 → 12.
+
+   Announce: "Change classified as **quick/standard** — [skipping/running] verification gates."
+
+7. **Implement tasks (loop until done or blocked)**
 
    **CRITICAL**: The tasks.md is your work order — follow it literally. Never rewrite, reinterpret, or regenerate the tasks. Never invent field names, API types, or schemas that don't exist in the actual source code.
 
    For each pending task:
    - Show which task is being worked on
    - **Read all source files** you'll modify — in full — before making any changes
-   - **Verify field/type names** exist in the actual codebase (check type definitions, existing schemas, etc.)
+   - **Verify field/type names** exist in the actual codebase: run `grep_search` for each field/type name before using it. If a name cannot be found: STOP, report what's missing, and ask the user. Do NOT assume alternative names or invent types.
    - Make the code changes required using file editing tools (replace_string_in_file, create_file, etc.)
    - Every task MUST result in actual file edits, not descriptions of what to do
    - Keep changes minimal and focused
+   - **Before marking complete**: verify you made actual file changes for this task. If a task produced zero file edits, it is not complete — either implement it or ask the user if the task should be removed.
    - Mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
 
@@ -85,37 +100,31 @@ Implement tasks from an OpenSpec change.
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-7. **Self-verification gate** (mandatory — do not skip)
+8. **Self-verification gate** (standard changes only — skip for quick)
 
-   Once all implementation tasks are complete, run through these checks **before** invoking the Reviewer:
+   Run these checks before invoking the Reviewer. Each check must produce concrete evidence.
 
-   1. **Feature inventory**: For every container/page/module you modified, compare with the original version and list every feature (sections, hooks, conditional blocks, special-case UI). Confirm each one is still present or was **explicitly** requested for removal.
-   2. **i18n completeness** (if project uses i18n): Verify every new/changed translation key has corresponding entries in all language files. Verify removed UI text has its translation keys removed. Verify user-provided text is verbatim.
-   3. **Orphan check** (if project uses i18n): Search the codebase for every translation key you touched — confirm each one is still referenced somewhere. Remove unreferenced keys.
-   4. **API constraint check**: If the change involves form state that maps to multiple API flags, verify whether the backend enforces mutual exclusivity or other constraints between them.
-   5. **Spec text match**: Re-read the spec/ticket and confirm all UI labels, tooltips, and helper text match verbatim.
+   1. **Feature inventory** (always): For modified files, compare original (`git show HEAD:<path>`) with current version. For new files, verify against spec. List features: PRESERVED (with line) or REMOVED. Restore any feature removed without explicit spec request.
+   2. **Spec text match** (always): Re-read the spec. Grep for every UI label/tooltip/helper text. Report: spec text → file:line. Flag mismatches.
+   3. **i18n checks** (only if project uses i18n): Verify new/changed keys exist in all language files. Grep for orphaned keys and remove them.
+   4. **API constraint check** (only if change involves form state → API flags): Read API type definitions, check for mutual exclusivity.
 
-   Only proceed to step 8 after completing all checks. If any check fails, fix before continuing.
+   Fix failures before proceeding.
 
-8. **Auto-review before build verification** (mandatory — never skip)
+9. **Auto-review** (standard changes only — skip for quick)
 
-   Once the self-verification gate passes:
-   - Invoke the **Reviewer** agent with the change name and list of changed files.
-   - The Reviewer will check against `.github/copilot-instructions.md`, spec compliance, and deep bug hunting (including control flow verification).
-   - If the Reviewer returns **REQUEST_CHANGES**:
-     - Add the findings as new tasks in the tasks file under a "Review Fixes" section.
-     - Implement the review fixes before proceeding.
-     - After fixes, re-invoke the Reviewer on only the changed files.
-   - If the Reviewer returns **APPROVE**: proceed to build verification tasks.
-   - This step is NOT optional — never skip straight to build/test.
+   - **VS Code**: Invoke `@Reviewer`. **Claude Code**: Run `/project:review`. Both produce equivalent output.
+   - If **REQUEST_CHANGES**: add findings as tasks under "Review Fixes" (use "Round 2" heading if section already exists). Implement fixes, then re-invoke Reviewer on changed files only.
+   - **Circuit breaker**: After 3 review cycles on the same code area, STOP and ask the user. Do NOT continue without explicit approval.
+   - If **APPROVE**: proceed to build verification.
 
-9. **Build verification**
+10. **Build verification**
 
    Check `.github/copilot-instructions.md` for the project's build/quality commands. Run them in the documented order. If any command fails, fix the issue and re-run.
 
    If the build commands are not documented, ask the user.
 
-10. **On completion or pause, show status**
+11. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session

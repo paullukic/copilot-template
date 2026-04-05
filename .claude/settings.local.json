@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(curl -s \"https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-code-best-practices\")",
+      "Bash(curl -s \"https://www.anthropic.com/engineering/claude-code-best-practices\")",
+      "Bash(curl -s \"https://www.anthropic.com/research/building-effective-agents\")"
+    ]
+  }
+}
