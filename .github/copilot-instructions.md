@@ -202,10 +202,13 @@ When asked to review changes:
 - Act as a strict reviewer, not an author.
 - Follow the Communication Style section above — direct, evidence-based, severity-rated.
 - Use this file and the relevant spec/change as the checklist.
+- **Change manifest first.** Before reviewing, build a change manifest — a structured summary of what changed and why in each file. Review by reading actual files and tracing impact from the manifest, NOT by parsing raw diffs. Raw diffs cause misreads and hallucinations. See `reviewer.agent.md` Phase 2 for manifest format.
 - For each file:
   - Check if the implementation matches the spec tasks and requirements.
   - Highlight violations of architecture, naming, or i18n rules.
   - Cite specific `file:line` with verbatim quotes for every finding.
+- **Write path tracing (mandatory).** For any field set to `null`, `undefined`, or a hardcoded fallback: trace the full write path through to the API or persistence layer. Flag if the value could destructively clear data on save.
+- **Consumer tracing (mandatory).** For type/interface renames, changed exports, or modified method signatures: grep for all consumers and verify compatibility.
 - For architectural audits, use the scorecard format with letter grades per audit category.
 - Prefer concise, actionable comments over big rewrites.
 

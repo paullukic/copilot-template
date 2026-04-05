@@ -129,26 +129,54 @@ When reviewing changes that touch 5+ files or involve architectural changes, als
 2. Run `git branch --show-current` to confirm the active branch.
 3. Run `git fetch origin main` to ensure the latest remote main is available.
 4. Run `git diff origin/main --stat` to list changed files with line counts.
-5. Run `git diff origin/main` (full diff) — this is **the primary review source**.
-6. If the user provided spec/change context, read it. Otherwise skip spec artifacts to conserve context.
+5. **Sanity-check the diff**: for every file in the `--stat` output, run `ls <path>` (or `read_file`) to confirm the file exists on disk in the working tree. If a file appears in the diff but does NOT exist on disk, it was deleted or rewritten — skip it and note the discrepancy. Do NOT analyze phantom files.
 
-### Phase 2 — Diff-first review
+### Phase 2 — Build the change manifest
 
-6. Walk the checklist **against the diff hunks**, not full files. For most convention checks (imports, exports, function style, i18n) the diff provides enough context.
-7. Only read the full file (via `run_in_terminal` with `cat`) when:
-   - The diff hunk lacks surrounding context needed to evaluate correctness (e.g., a change references a variable defined elsewhere in the file).
-   - You need to verify the file's overall structure (export ordering, component count).
-8. **Never read files that are not in the diff** unless a changed file's public API surface (exported types, props, function signatures) was modified — then use `grep_search` to find callers and read only the relevant lines of those callers.
+The change manifest is the primary review input — NOT raw diffs. Raw diffs cause misreads and hallucinations. The manifest tells you **what changed and why** so you can read actual files and trace impact accurately.
 
-### Phase 3 — Targeted deep dives
+**If the caller provided a change manifest**, use it directly and skip to Phase 3.
 
-9. From the diff-based pass, identify areas that look suspicious or complex. Deep-dive **only** into those specific areas — read surrounding code, trace logic, check edge cases.
-10. Do NOT deep-dive into code that looks straightforward and matches established patterns.
+**If no manifest was provided**, generate one:
 
-### Phase 4 — Output
+6. For each changed file from `--stat`, run `git diff origin/main -- <file>` one file at a time.
+7. For each file, write a 1-2 line summary of what changed (not the diff itself). Focus on:
+   - What was renamed, added, removed, or rewired
+   - For fields set to `null`/`undefined`/hardcoded values: note the old source of the value
+   - For type changes: note old type → new type
+8. Group changes by logical unit (e.g., "OldType renamed to NewType in 4 files").
+9. Exclude auto-generated files from the manifest (note them as "auto-generated, skip").
 
-11. Produce the structured review output.
-12. If the user asks you to re-review after fixes, re-read only the changed files and update your findings.
+The manifest should look like:
+```
+### Changed files:
+1. **file.ts** — `fieldX` set to `null` (was `entity.fieldX?.id`; field removed from API response)
+2. **other.ts** — Type renamed from `OldType` to `NewType` (import + annotations)
+3. **component.tsx** — Changed condition from `serverProp` to `localState` to fix state inconsistency
+```
+
+### Phase 3 — Read & trace (manifest-driven review)
+
+For each entry in the manifest:
+
+10. **Read the actual file** (not the diff). This is the source of truth.
+11. **Trace downstream impact** based on what the manifest says changed:
+    - For fields set to `null`/`undefined`: trace the full write path (selector → form values → payload mapper → API call). Flag if sending `null`/`undefined` could destructively clear backend data.
+    - For type renames: verify the new type has all fields accessed by the consuming code.
+    - For state/condition changes: verify consistency between render conditions and data passed to child components.
+    - For removed/added exports: grep for all consumers and verify none are broken or missed.
+12. Walk the review checklist against each file, using the manifest to focus on what actually changed.
+13. **Only read files NOT in the manifest** when tracing a write path or checking consumers of a changed export.
+
+### Phase 4 — Targeted deep dives
+
+14. From the manifest-driven pass, identify areas that look suspicious or complex. Deep-dive **only** into those specific areas — read surrounding code, trace logic, check edge cases.
+15. Do NOT deep-dive into code that looks straightforward and matches established patterns.
+
+### Phase 5 — Output
+
+16. Produce the structured review output.
+17. If the user asks you to re-review after fixes, re-read only the changed files and update your findings.
 
 ## Output Format
 
@@ -206,12 +234,14 @@ Below the diagram, add 3-5 bullet points explaining key design decisions
 
 ### Evidence rule (mandatory)
 
-Every finding that references specific code **must** include a verbatim quote of the relevant line(s) from a tool output (diff hunk, `cat`, `read_file`, or `grep_search`). If you cannot produce an exact quote from a verified tool output, **drop the finding** — do not report it. This prevents confabulated findings about code that doesn't exist.
+Every finding that references specific code **must** include a verbatim quote of the relevant line(s) from a tool output (`read_file`, or `grep_search`). If you cannot produce an exact quote from a verified tool output, **drop the finding** — do not report it. This prevents confabulated findings about code that doesn't exist.
+
+**File existence requirement**: Before reporting any finding, verify the file exists on the current working tree (not just in the diff). The diff can contain files that were since deleted, renamed, or rewritten. Use `read_file` on the actual file path to confirm the code you're citing still exists. If the file or code block does not exist on disk, **drop the finding**.
 
 ### Context discipline
 
-- The `git diff` output is your primary review source. Do not read full files just to be thorough.
-- Only expand context (read full file, trace callers) when a specific finding requires it.
+- The change manifest is your primary review scope. Read the actual files listed in the manifest — do NOT parse raw diffs as the review source.
+- Trace downstream consumers (write paths, callers) when the manifest indicates a field was nulled, a type was changed, or an export was modified.
 - If you've already consumed many files and the context is getting large, stop expanding and review what you have.
 - Never read spec artifacts (proposal, design, tasks) unless reviewing spec compliance specifically.
 
@@ -219,7 +249,8 @@ Every finding that references specific code **must** include a verbatim quote of
 
 - **Rubber-stamping**: Approving because the code "looks fine" without checking each category. Walk the full checklist.
 - **Confabulated findings**: Reporting bugs in code that doesn't exist. Every finding must include a verbatim quote from a tool output. No quote = drop the finding.
-- **Over-reading**: Reading every file in the project "to be thorough." The diff is your primary source. Expand only when a finding requires it.
+- **Raw diff review**: Reviewing `+`/`-` lines from diff output instead of reading actual files. Diffs cause misreads — removed lines get confused with current code, context is missing. Always read the actual file to verify what the code looks like NOW.
+- **Over-reading**: Reading every file in the project "to be thorough." The change manifest is your scope. Expand only when tracing a write path or consumer.
 - **Vague feedback**: "This could be improved." Instead, cite the specific line, explain what's wrong, and show what correct looks like.
 - **Suggesting refactors**: Proposing redesigns beyond what conventions or specs require. Review what was changed, not what you'd prefer.
 - **Missing edge cases**: Skimming logic instead of tracing paths. For every conditional, ask: what happens when the condition is false? What if the value is null?
