@@ -149,13 +149,42 @@ cd <target-project>/.github/code-graph && npm install
 
 This installs d3 (used by `visualize.py` to generate offline-capable HTML graphs).
 
-### 6c. Add `.code-graph/` to `.gitignore`
+### 6c. Ensure `uv` is installed
+
+`uv` is the recommended way to run the MCP server (auto-installs Python deps without polluting the system).
+
+Check availability:
+```bash
+command -v uv
+```
+
+If `uv` is not found, install it automatically:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+After install, ensure `~/.local/bin` (or the printed install path) is on `$PATH` for the current session:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Verify:
+```bash
+uv --version
+```
+
+Do NOT ask the user to install `uv` manually — install it automatically and report the result.
+If the install script fails (e.g. no internet, corporate proxy), fall back to `pip install 'mcp>=1.0.0'` and use `python` instead of `uv` in MCP configs.
+
+### 6d. Add `.code-graph/` to `.gitignore`
 
 Append `.code-graph/` to the target project's `.gitignore` if not already present.
 Also ensure `node_modules/` is in `.gitignore` (usually already present).
 The graph database is local/generated — it must not be committed.
 
-### 6d. Write MCP config(s) based on AI tools chosen in Step 1
+### 6e. Write MCP config(s) based on AI tools chosen in Step 1
+
+By this point `uv` should be installed (step 6c). If step 6c fell back to pip, use `"command": "python"` and `"args": ["${workspaceFolder}/.github/code-graph/server.py"]` in all configs below instead of the `uv` variant.
 
 **VS Code Copilot** → create or merge into `.vscode/mcp.json`:
 ```json
@@ -169,7 +198,6 @@ The graph database is local/generated — it must not be committed.
   }
 }
 ```
-If `uv` is not available, use `"command": "python"` and `"args": ["${workspaceFolder}/.github/code-graph/server.py"]` instead (user must have run `pip install mcp` first).
 
 **Claude Code** → create or merge into `.mcp.json` at repo root:
 ```json
@@ -200,44 +228,52 @@ If `uv` is not available, use `"command": "python"` and `"args": ["${workspaceFo
 If `Both` was selected in Step 1, write all applicable configs.
 Do NOT overwrite existing MCP configs — merge `code-graph` key into the `servers`/`mcpServers` object.
 
-### 6e. Build the initial graph
+### 6f. Build the initial graph
 
+The `--build` flag does NOT require the `mcp` package — it only uses stdlib + builder.py.
 Run in the target project root:
 ```bash
 python .github/code-graph/server.py --build
 ```
-Or with uv:
-```bash
-uv run --with 'mcp>=1.0.0' .github/code-graph/server.py --build
-```
 
-Expected output: `Graph built: N files → .code-graph/graph.db`
+Expected output includes timed progress per phase, ending with:
+`Graph built: N files → .code-graph/graph.db (X.XXs)`
 
 If the build fails:
 - Check Python 3.10+ is available: `python --version`
-- If `mcp` import fails, the `--build` path does not use MCP at all — check for a different error.
+- The `--build` path does NOT import MCP — if you see an mcp error, something else is wrong.
 - Report the exact error to the user; do not skip.
 
-### 6f. Verify
+### 6g. Verify
 
-Confirm `.code-graph/graph.db` exists. Report the file size to the user as confirmation.
+Confirm `.code-graph/graph.db` exists. Report the file size and build time to the user as confirmation.
 
-### 6g. Install optional git hooks for automatic updates
+### 6h. Install git hooks for automatic updates
 
-Offer to install git hooks that keep the graph fresh after local history or working-tree changes:
-- `post-commit` (after commit)
-- `post-merge` (after merge, including `git pull` merge mode)
-- `post-rewrite` (after rebase, including `git pull --rebase`)
+Ask the user a **Yes/No** question using `vscode_askQuestions`:
+> **Install git hooks?** — "Auto-update the code graph on commit, merge, and rebase?"
+> Options: `Yes` (recommended), `No`
 
-If the user agrees and `.git/` exists in the target project root:
+If the user selects **No**, skip to 6i.
 
+If the user selects **Yes**:
+
+1. Find the git directory. The target project may be a subfolder in a monorepo:
 ```bash
-cp .github/code-graph/post-commit .git/hooks/post-commit
-cp .github/code-graph/post-merge .git/hooks/post-merge
-cp .github/code-graph/post-rewrite .git/hooks/post-rewrite
-chmod +x .git/hooks/post-commit
-chmod +x .git/hooks/post-merge
-chmod +x .git/hooks/post-rewrite
+GIT_DIR=$(git -C <target-project> rev-parse --git-dir)
+```
+
+2. Create the hooks directory if it doesn't exist:
+```bash
+mkdir -p "$GIT_DIR/hooks"
+```
+
+3. Copy and make executable:
+```bash
+cp <target-project>/.github/code-graph/post-commit "$GIT_DIR/hooks/post-commit"
+cp <target-project>/.github/code-graph/post-merge "$GIT_DIR/hooks/post-merge"
+cp <target-project>/.github/code-graph/post-rewrite "$GIT_DIR/hooks/post-rewrite"
+chmod +x "$GIT_DIR/hooks/post-commit" "$GIT_DIR/hooks/post-merge" "$GIT_DIR/hooks/post-rewrite"
 ```
 
 Each hook runs:
@@ -250,8 +286,9 @@ Behavior:
 - If `.code-graph/graph.db` does not exist yet, the hook exits silently.
 - Hook installation is local only (`.git/hooks/` is not committed), so each developer installs it once.
 - `git fetch` alone does not update the graph because it does not change the checked-out files.
+- Works in monorepos where `.git/` is above the target project root.
 
-### 6h. Optional global gitignore entries for local-only folders
+### 6i. Optional global gitignore entries for local-only folders
 
 Run this only if Step 1 question 6 is `yes`.
 
