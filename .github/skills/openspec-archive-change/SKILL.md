@@ -119,3 +119,25 @@ All artifacts complete. All tasks complete.
 - Show clear summary of what happened
 - If sync is requested, manually merge delta specs into main specs
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
+
+## Common Rationalizations
+
+These are excuses agents use to skip archive steps. Do not accept them.
+
+| Rationalization | Reality |
+|---|---|
+| "The tasks are mostly done, close enough to archive" | Incomplete tasks are lost context. Warn the user explicitly — they may want to finish or document why tasks were dropped. |
+| "Spec sync isn't important, just archive" | Delta specs that aren't synced are lost requirements. Always run the sync assessment and let the user decide. |
+| "I'll just move the directory without checking status" | Skipping status checks means archiving broken or incomplete work without the user knowing. Always run `openspec status` first. |
+| "The user seems to want this archived quickly, skip the prompts" | Archive is a one-way operation. Confirmation prompts exist to prevent data loss. Never skip them. |
+
+## Verification
+
+Before declaring archive complete, confirm:
+
+- [ ] `openspec status --change "<name>"` was run to check artifact/task completion.
+- [ ] User was warned about any incomplete artifacts or tasks.
+- [ ] Delta spec sync was assessed (if delta specs exist).
+- [ ] Archive target doesn't collide with existing archive entries.
+- [ ] The change directory was successfully moved to `archive/YYYY-MM-DD-<name>/`.
+- [ ] Summary shown to user includes schema, archive path, and sync status.

@@ -50,6 +50,18 @@ Before reviewing, always gather:
 2. **Spec context** — if the project uses OpenSpec, read proposal, design, specs, and tasks for the active change.
 3. **Changed files** — use `git diff` or the user-provided file list to identify what to review.
 
+## Optional Graph Context
+
+If code-graph MCP tools are available in the environment:
+1. Call `get_minimal_context(task="review ...")` first — check `uncommitted_risk` and follow `next_tool_suggestions`.
+2. Call `detect_changes()` to get risk-scored affected nodes and `file_risks`.
+3. Call `get_review_context(files)` for focused file set + related tests.
+4. Use `query_graph("importers_of", file)` and `query_graph("callers_of", fn)` to trace consumers.
+5. Verify every finding from the current working tree via `read_file`.
+
+If graph tools are unavailable:
+- Continue with the standard manifest-driven review flow below.
+
 ## Review Checklist
 
 For every changed file, check against these categories:
@@ -124,6 +136,27 @@ Additionally:
 - Do NOT trace callers for internal-only changes (implementation details, local variables, private helpers).
 - Look for broken contracts: renamed fields, removed props/methods, changed enum values that other modules depend on.
 
+### Change Sizing
+Small, focused changes are easier to review and safer to deploy.
+
+| Size | Assessment |
+|------|------------|
+| ~100 lines | Good — reviewable in one sitting |
+| ~300 lines | Acceptable if it's one logical change |
+| ~1000 lines | Too large — flag for splitting |
+
+If the change is too large, suggest splitting strategies: stack (sequential dependencies), by file group (different reviewers), horizontal (shared code first), or vertical (smaller full-stack slices). **Exception**: complete file deletions and automated refactoring — only verify intent, not every line.
+
+### Dependency Review
+When the change adds a new dependency:
+1. Does the existing stack already solve this?
+2. How large is the dependency? (bundle/JAR impact)
+3. Is it actively maintained? (last commit, open issues)
+4. Known vulnerabilities? (`npm audit` / `mvn dependency:analyze`)
+5. License compatible with the project?
+
+Prefer standard library and existing utilities over new dependencies. Every dependency is a liability.
+
 ### Architecture Audit (when scope warrants it)
 When reviewing changes that touch 5+ files or involve architectural changes, also assess (skip N/A categories):
 - **Prop drilling / data flow**: Unnecessary pass-through, context vs props trade-offs, redundant data fetching.
@@ -139,6 +172,7 @@ When reviewing changes that touch 5+ files or involve architectural changes, als
 
 ### Phase 1 — Anchor & scope (mandatory first step)
 
+0. If graph tools are available, gather impact context first (changed entities, affected flows, test links). Use it to focus the manual review, not to replace source verification.
 1. Read `.github/copilot-instructions.md`.
 2. Run `git branch --show-current` to confirm the active branch.
 3. Run `git fetch origin main` to ensure the latest remote main is available.
@@ -212,6 +246,9 @@ Before producing the final output, challenge your own findings:
 
 ### Nits (optional)
 - **[file:line]** Minor style or preference note.
+
+### What's Done Well
+- [At least one specific positive observation — cite file:line. Acknowledging good work motivates continued quality.]
 
 ### Missing
 - Tests or edge cases not covered.

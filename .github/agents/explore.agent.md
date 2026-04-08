@@ -39,7 +39,8 @@ The caller specifies one of these — default to **medium** if unspecified:
 ## Protocol
 
 1. **Understand the question.** What specific information does the caller need? What format?
-2. **Search efficiently.** Use the right tool for the job:
+2. **If code-review-graph MCP tools are available, use them first** for impacted entities, dependency paths, and review context; then confirm key claims from file reads.
+3. **Search efficiently.** Use the right tool for the job:
    - `grep_search` for exact text/regex matches
    - `file_search` for finding files by name/path pattern
    - `semantic_search` for concept-based discovery

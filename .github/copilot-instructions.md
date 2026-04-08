@@ -22,12 +22,35 @@
 - Keep diffs small, reversible, and easy to review.
 - Write a cleanup plan before modifying code during refactors.
 - Verify outcomes with evidence before claiming completion. "It should work" is not verification.
-- Run quality gates (lint, typecheck, tests) after changes — don’t assume they pass.
-- **MANDATORY**: Before any non-trivial implementation, follow: **Plan → Propose → Apply**. Never skip straight to implementation.
+- Run quality gates (lint, typecheck, tests) after changes — don’t assume they pass.- **Surface assumptions.** Before implementing anything non-trivial, list assumptions explicitly:
+  ```
+  ASSUMPTIONS I'M MAKING:
+  1. [assumption about requirements]
+  2. [assumption about architecture]
+  → Correct me now or I'll proceed with these.
+  ```
+  Don't silently fill in ambiguous requirements — assumptions are the most dangerous form of misunderstanding.
+- **Manage confusion actively.** When encountering inconsistencies, conflicting requirements, or unclear specs: (1) STOP, (2) name the specific confusion, (3) present options/tradeoffs, (4) wait for resolution. Never silently pick one interpretation and hope it's right.
+- **Scope discipline.** Touch only what the task requires. If you notice something worth improving outside the task scope, note it — don't fix it:
+  ```
+  NOTICED BUT NOT TOUCHING:
+  - <file> has an unused import (unrelated to this task)
+  - <module> could use better error messages (separate task)
+  → Want me to create tasks for these?
+  ```
+- **Inline planning.** For multi-step tasks, emit a lightweight plan before executing:
+  ```
+  PLAN:
+  1. Add validation schema for X
+  2. Wire schema into endpoint Y
+  3. Add test for validation error
+  → Executing unless you redirect.
+  ```
+- **Simplicity check.** After writing code, ask: Can this be done in fewer lines? Are abstractions earning their complexity? Would a staff engineer say "why didn't you just..."? If 100 lines suffice and you wrote 500, you have failed.- **MANDATORY**: Before any non-trivial implementation, follow: **Plan → Propose → Apply**. Never skip straight to implementation.
   - **New tickets, unclear requirements**: run `@Planner` first (investigate codebase, interview user) before creating an OpenSpec proposal.
   - **Review findings, refactors with clear scope**: skip `@Planner` — the review output IS the investigation. Go straight to OpenSpec proposal.
   - OpenSpec uses a single `proposal.md` (Why, Goals/Non-Goals, Decisions, Impact, Risks) — no separate `design.md`. Keep `tasks.md` coarse: group mechanical changes by logical unit, not per-file.
-  - For machine-consumed progress tracking (task status, feature inventories, test result summaries), use JSON format when possible — agents corrupt markdown checkboxes more reliably than structured JSON entries. Keep human-readable summaries in markdown.
+  - For progress tracking generated outside the OpenSpec CLI (feature inventories, test result summaries), prefer JSON format — agents corrupt markdown checkboxes more reliably than structured JSON entries. OpenSpec CLI artifacts (`tasks.md`) use markdown checkboxes by design; follow the CLI output format.
 
 ## Communication Style
 
@@ -116,7 +139,7 @@ All agents and interactions follow these communication principles. This section 
 
 ## Errors and Logging <!-- FILL -->
 
-- Use project logger — **no `console.log`**. User feedback via toast/notification — not `alert()`.
+- Use the project's structured logger — no raw stdout/stderr printing (`System.out.println`, `console.log`, `print()`, etc.).
 
 ## Security
 

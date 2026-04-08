@@ -114,3 +114,35 @@ After completing all artifacts, summarize:
 - If context is critically unclear, ask the user. Otherwise, make reasonable decisions to keep momentum — do not block on minor ambiguities
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next
+
+## Common Rationalizations
+
+These are excuses agents use to skip steps. Do not accept them.
+
+| Rationalization | Reality |
+|---|---|
+| "The requirements are clear enough to skip the spec" | If they were, you wouldn't need an agent. Write the spec — it takes 5 minutes and prevents 2 hours of rework. |
+| "I'll figure out the details during implementation" | That's how features get half-built and re-scrapped. Surface unknowns in the proposal, not in code. |
+| "This is too small for a proposal" | If it touches 3+ files or changes behavior, it needs a proposal. Small proposals are fine. |
+| "The user seems impatient, I'll just start coding" | Starting without a contract means rework when assumptions are wrong. A 2-minute proposal saves a 30-minute redo. |
+| "I know the codebase well enough to skip investigation" | You don't know what changed since your last context. Read the relevant files before proposing. |
+
+## Red Flags
+
+- Proposal created without reading any existing source code.
+- Tasks that are per-file ("update file X", "update file Y") instead of per-logical-unit.
+- Missing Risks section or empty Non-Goals.
+- More than 10 tasks — scope is too large, split the change.
+- Proposal proceeding to implementation without explicit user approval.
+- Impact section that doesn't list specific file paths.
+
+## Verification
+
+After generating the proposal, confirm:
+
+- [ ] `proposal.md` has all required sections (Why, Goals, Non-Goals, Decisions, Impact, Risks).
+- [ ] `tasks.md` has 3-7 tasks (max 10), grouped by logical unit.
+- [ ] Every task has a clear description and files list.
+- [ ] The Impact section lists specific file paths, not vague module names.
+- [ ] Risks section is honest — not empty or minimized.
+- [ ] The user was explicitly asked for approval before any implementation.

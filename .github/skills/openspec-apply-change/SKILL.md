@@ -199,6 +199,40 @@ What would you like to do?
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
 
+## Common Rationalizations
+
+These are excuses agents use to skip steps. Do not accept them.
+
+| Rationalization | Reality |
+|---|---|
+| "I'll run tests at the end" | Bugs compound. A bug in Task 1 makes Tasks 2-5 wrong. Verify after each task. |
+| "This task is too small to verify" | Small changes break builds. Run the quality gate — it takes seconds. |
+| "The reviewer will catch it" | The reviewer is not your safety net. Self-verify before handing off. |
+| "I'll clean up the dead code later" | Later never comes. Clean up residue imports and variables before marking a task done. |
+| "These changes are related so I'll do them together" | Mixing concerns makes review harder and rollback impossible. One logical change per task. |
+| "The spec is wrong, I'll fix it in code" | The spec is a contract. If it's wrong, pause and ask — don't silently deviate. |
+
+## Red Flags
+
+- More than 100 lines written without running tests or build.
+- Tasks marked "done" with zero file edits.
+- Skipping the self-verification gate because "changes are small."
+- Multiple unrelated changes bundled into one task.
+- Build or tests broken between tasks and not immediately fixed.
+- Touching files outside the task scope "while I'm here."
+
+## Verification
+
+After completing all tasks, confirm:
+
+- [ ] Every task in `tasks.md` produced actual file edits.
+- [ ] All existing tests still pass.
+- [ ] The build succeeds.
+- [ ] No existing features were accidentally removed (feature inventory checked).
+- [ ] Residue code cleaned up (dead imports, unused variables).
+- [ ] The Reviewer has been invoked and returned a verdict.
+- [ ] All Critical findings from review are resolved.
+
 **Fluid Workflow Integration**
 
 This skill supports the "actions on a change" model:

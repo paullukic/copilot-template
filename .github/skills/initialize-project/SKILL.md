@@ -24,6 +24,14 @@ Ask the user these questions using the **vscode_askQuestions tool** (wait for an
 3. **Any sections to skip entirely?** (e.g., i18n, API design, data layer) — optional, user can say "none"
 4. **Any additional project-specific coding/review rules?**
   - Ask for concise bullets (for example: mandatory architecture patterns, domain invariants, naming restrictions, module boundaries, logging/security constraints).
+5. **Enable standalone code-graph?**
+   - Options: `yes` (recommended for projects with 10+ files), `no`
+   - When enabled a minimal Python MCP server is shipped inside the project at `.github/code-graph/` and wired into the AI tool(s) selected in question 2 — no external package install required beyond `mcp>=1.0.0`.
+   - Requires Python 3.10+. `uv` is recommended (auto-installs deps); `pip` works too.
+6. **For local-only generated folders, add entries to global git ignore?**
+  - Ask this only if Step 1 question 5 is `yes`.
+  - Options: `yes`, `no`
+  - If `yes`, ask for additional paths (optional). Include `.code-graph/` by default.
 
 ## Step 2: Detect Tech Stack
 
@@ -116,6 +124,166 @@ Using the detected info from Step 2, replace all `_TBD_` placeholders and `<!-- 
 4. Show a summary of all files created/modified
 5. Ask if the user wants to commit the changes
 
+## Step 6: Optional standalone code-graph setup
+
+Run this step only if the user selected `yes` in Step 1 question 5.
+
+### 6a. Copy server files
+
+Copy `.github/code-graph/` from the copilot-template to the target project.
+This includes:
+- `builder.py` — parses source files into SQLite (zero external deps, pure stdlib)
+- `server.py`  — MCP server exposing 6 tools to the AI assistant
+- `visualize.py` — generates standalone HTML graph visualization
+- `package.json` — d3 dependency for visualization
+- `requirements.txt` — only `mcp>=1.0.0`
+- `post-commit` / `post-merge` / `post-rewrite` — optional git hooks for automatic graph updates
+
+Do NOT copy `node_modules/` — it will be installed in the next step.
+
+### 6b. Install d3 dependency
+
+```bash
+cd <target-project>/.github/code-graph && npm install
+```
+
+This installs d3 (used by `visualize.py` to generate offline-capable HTML graphs).
+
+### 6c. Add `.code-graph/` to `.gitignore`
+
+Append `.code-graph/` to the target project's `.gitignore` if not already present.
+Also ensure `node_modules/` is in `.gitignore` (usually already present).
+The graph database is local/generated — it must not be committed.
+
+### 6d. Write MCP config(s) based on AI tools chosen in Step 1
+
+**VS Code Copilot** → create or merge into `.vscode/mcp.json`:
+```json
+{
+  "servers": {
+    "code-graph": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--with", "mcp>=1.0.0", "${workspaceFolder}/.github/code-graph/server.py"]
+    }
+  }
+}
+```
+If `uv` is not available, use `"command": "python"` and `"args": ["${workspaceFolder}/.github/code-graph/server.py"]` instead (user must have run `pip install mcp` first).
+
+**Claude Code** → create or merge into `.mcp.json` at repo root:
+```json
+{
+  "mcpServers": {
+    "code-graph": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--with", "mcp>=1.0.0", ".github/code-graph/server.py"]
+    }
+  }
+}
+```
+
+**Cursor** → create or merge into `.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "code-graph": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--with", "mcp>=1.0.0", ".github/code-graph/server.py"]
+    }
+  }
+}
+```
+
+If `Both` was selected in Step 1, write all applicable configs.
+Do NOT overwrite existing MCP configs — merge `code-graph` key into the `servers`/`mcpServers` object.
+
+### 6e. Build the initial graph
+
+Run in the target project root:
+```bash
+python .github/code-graph/server.py --build
+```
+Or with uv:
+```bash
+uv run --with 'mcp>=1.0.0' .github/code-graph/server.py --build
+```
+
+Expected output: `Graph built: N files → .code-graph/graph.db`
+
+If the build fails:
+- Check Python 3.10+ is available: `python --version`
+- If `mcp` import fails, the `--build` path does not use MCP at all — check for a different error.
+- Report the exact error to the user; do not skip.
+
+### 6f. Verify
+
+Confirm `.code-graph/graph.db` exists. Report the file size to the user as confirmation.
+
+### 6g. Install optional git hooks for automatic updates
+
+Offer to install git hooks that keep the graph fresh after local history or working-tree changes:
+- `post-commit` (after commit)
+- `post-merge` (after merge, including `git pull` merge mode)
+- `post-rewrite` (after rebase, including `git pull --rebase`)
+
+If the user agrees and `.git/` exists in the target project root:
+
+```bash
+cp .github/code-graph/post-commit .git/hooks/post-commit
+cp .github/code-graph/post-merge .git/hooks/post-merge
+cp .github/code-graph/post-rewrite .git/hooks/post-rewrite
+chmod +x .git/hooks/post-commit
+chmod +x .git/hooks/post-merge
+chmod +x .git/hooks/post-rewrite
+```
+
+Each hook runs:
+
+```bash
+python .github/code-graph/server.py --update
+```
+
+Behavior:
+- If `.code-graph/graph.db` does not exist yet, the hook exits silently.
+- Hook installation is local only (`.git/hooks/` is not committed), so each developer installs it once.
+- `git fetch` alone does not update the graph because it does not change the checked-out files.
+
+### 6h. Optional global gitignore entries for local-only folders
+
+Run this only if Step 1 question 6 is `yes`.
+
+1. Detect global ignore file path:
+```bash
+git config --global core.excludesfile
+```
+2. If empty, default to `~/.config/git/ignore` and set it:
+```bash
+git config --global core.excludesfile "$HOME/.config/git/ignore"
+mkdir -p "$HOME/.config/git"
+touch "$HOME/.config/git/ignore"
+```
+3. Add `.code-graph/` and any user-provided local-only folder entries if missing.
+4. Report exactly which entries were added.
+
+## Step 7: Agent references (when code-graph is enabled)
+
+The copied agent files already include "Optional Graph Context" sections.
+Verify they are present in the target project by checking `reviewer.agent.md` for the text `Optional Graph Context`.
+If missing (e.g. the user had older agent files and chose Skip), add the following block to the top of the Inputs section of each agent file:
+
+```
+## Optional Graph Context
+
+If code-graph MCP tools are available (server.py running):
+- Call get_review_context / get_impact_radius first to get a focused file set.
+- Use graph output to prioritize reads; verify every finding from the current file on disk.
+
+If graph tools are unavailable: continue with normal file search/read flow.
+```
+
 ## Guardrails
 
 - Never guess at commands — if you can't detect them, ask.
@@ -124,3 +292,4 @@ Using the detected info from Step 2, replace all `_TBD_` placeholders and `<!-- 
 - Keep the communication style, implementation workflow, and review role sections intact — those are template features.
 - Prefer what the project already does over generic defaults.
 - Initialization is complete only when there are zero `_TBD_` and `<!-- FILL` markers in copied instruction files.
+- If code-graph setup is enabled, initialization is complete only when `.code-graph/graph.db` exists in the target project and at least one MCP config file has been written.

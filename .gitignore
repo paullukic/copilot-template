@@ -18,5 +18,9 @@ Thumbs.db
 !.claude/
 !CLAUDE.md
 
+# Generated artifacts (local only)
+.code-graph/
+node_modules/
+
 # OpenSpec change archives (optional — uncomment to ignore)
 # openspec/changes/archive/

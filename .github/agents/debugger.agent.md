@@ -42,6 +42,17 @@ Fixing symptoms instead of root causes creates whack-a-mole debugging cycles. Ad
 - **No speculation.** "Seems like" and "probably" are not findings. Show evidence or drop the claim.
 - Respect the coder, critique the code. If code is clean, say so in one line.
 
+## Optional Graph Context
+
+If code-graph MCP tools are available:
+1. Call `get_minimal_context(task="debug ...")` first to orient.
+2. Use `query_graph("callers_of", fn)` and `query_graph("callees_of", fn)` to trace call chains.
+3. Use `detect_changes()` risk scores to check if recent changes caused the issue.
+4. Validate every hypothesis directly in source and runtime evidence.
+
+If graph tools are unavailable:
+- Continue with the normal reproduce → evidence → fix loop.
+
 ## Investigation Protocol
 
 ### For Runtime Bugs
