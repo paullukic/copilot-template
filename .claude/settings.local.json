@@ -6,11 +6,18 @@
       "Bash(curl -s \"https://www.anthropic.com/engineering/claude-code-best-practices\")",
       "Bash(curl -s \"https://www.anthropic.com/research/building-effective-agents\")",
       "Read(//home/paul/cybergrid/**)",
-      "Read(//home/paul/**)"
+      "Read(//home/paul/**)",
+      "Bash(cp /home/paul/cybergrid/copilot-template/.github/code-graph/builder.py /home/paul/cybergrid/.github/code-graph/builder.py)",
+      "Bash(cp /home/paul/cybergrid/copilot-template/.github/code-graph/server.py /home/paul/cybergrid/.github/code-graph/server.py)",
+      "Bash(git -C /home/paul/cybergrid rev-parse --git-dir)",
+      "Bash(mkdir -p __TRACKED_VAR__/hooks)",
+      "Bash(cp /home/paul/cybergrid/.github/code-graph/post-commit __TRACKED_VAR__/hooks/post-commit)",
+      "Bash(cp /home/paul/cybergrid/.github/code-graph/post-merge __TRACKED_VAR__/hooks/post-merge)",
+      "Bash(cp /home/paul/cybergrid/.github/code-graph/post-rewrite __TRACKED_VAR__/hooks/post-rewrite)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "code-graph"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

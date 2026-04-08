@@ -69,6 +69,7 @@ _SOURCE_EXTS = frozenset({
     ".py", ".ts", ".tsx", ".js", ".jsx",
     ".java", ".go", ".rs", ".kt", ".scala",
     ".swift", ".php", ".cs", ".rb", ".dart",
+    ".xml", ".yaml", ".yml", ".sql", ".properties", ".json",
 })
 
 _IGNORE_DIRS = frozenset({
@@ -79,6 +80,32 @@ _IGNORE_DIRS = frozenset({
 })
 
 _TEST_MARKERS = ("test", "spec", "__tests__", "_test", "_spec")
+
+_JAVA_KEYWORDS = frozenset({
+    'if', 'for', 'while', 'switch', 'catch', 'return', 'new', 'throw',
+    'class', 'interface', 'enum', 'import', 'package', 'assert', 'super',
+    'this', 'void', 'null', 'true', 'false', 'try', 'finally', 'default',
+    'do', 'break', 'continue', 'case', 'else', 'instanceof', 'synchronized',
+})
+
+
+def _strip_generics(s: str) -> str:
+    """Remove generic type parameters: 'List<String>' -> 'List'."""
+    depth, result = 0, []
+    for ch in s:
+        if ch == '<':
+            depth += 1
+        elif ch == '>':
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            result.append(ch)
+    return "".join(result).strip()
+
+
+def _split_java_types(raw: str) -> list[str]:
+    """Split 'Foo, Bar<Baz>, Qux' into ['Foo', 'Bar', 'Qux']."""
+    stripped = _strip_generics(raw)
+    return [t.strip().rsplit(".", 1)[-1] for t in stripped.split(",") if t.strip()]
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -160,6 +187,184 @@ def _parse_py(path: Path, rel: str, nodes: list, edges: list) -> None:
         visit_AsyncFunctionDef = visit_FunctionDef
 
     _V().visit(tree)
+
+
+# ---------------------------------------------------------------------------
+# Java parsing (dedicated parser with inheritance + annotations)
+# ---------------------------------------------------------------------------
+
+# Regex to match class/interface/enum declarations with extends/implements
+_JAVA_CLASS_RE = re.compile(
+    r'(?:(?:public|private|protected|abstract|final|static|strictfp)\s+)*'
+    r'(class|interface|enum|@interface)\s+'
+    r'(\w+)'
+    r'(?:\s*<[^{]*?>)?'
+    r'((?:\s+extends\s+[\w.<>,\s]+?)?)'
+    r'((?:\s+implements\s+[\w.<>,\s]+?)?)'
+    r'\s*\{',
+    re.MULTILINE | re.DOTALL,
+)
+
+_JAVA_METHOD_RE = re.compile(
+    r'(?:(?:public|private|protected|static|final|abstract|synchronized|native|default|override)\s+)+'
+    r'(?:@?\w+(?:\([^)]*\))?\s+)*'
+    r'(?:<[^>]+>\s+)?'
+    r'[\w<>\[\]?.]+\s+'
+    r'(\w+)\s*\(',
+    re.MULTILINE,
+)
+
+_JAVA_ANNOTATION_RE = re.compile(r'^\s*@(\w+)', re.MULTILINE)
+
+
+def _parse_java(path: Path, rel: str, nodes: list, edges: list) -> None:
+    """Enhanced Java parser with inheritance, interfaces, enums, annotations."""
+    text = path.read_text(encoding="utf-8", errors="ignore")
+
+    fid = _nid("file", rel, rel)
+    nodes.append((fid, "file", rel, rel, None, None))
+
+    # --- imports (skip stdlib) ---
+    for m in re.finditer(r'^import\s+(?:static\s+)?([\w.]+(?:\.\*)?)\s*;', text, re.MULTILINE):
+        imp = m.group(1).strip()
+        edges.append((fid, imp, "imports"))
+
+    # --- class / interface / enum declarations ---
+    for m in _JAVA_CLASS_RE.finditer(text):
+        decl_type = m.group(1)   # class, interface, enum, @interface
+        name = m.group(2)
+        extends_raw = m.group(3)
+        implements_raw = m.group(4)
+
+        line = text[:m.start()].count('\n') + 1
+        # Map declaration type to node kind
+        kind = "class"
+        if decl_type == "interface" or decl_type == "@interface":
+            kind = "interface"
+        elif decl_type == "enum":
+            kind = "enum"
+
+        nid = _nid(kind, rel, name)
+        nodes.append((nid, kind, name, rel, line, None))
+        edges.append((fid, nid, "contains"))
+
+        # Inheritance edges
+        if extends_raw and extends_raw.strip():
+            raw = extends_raw.strip()
+            if raw.startswith("extends"):
+                raw = raw[7:].strip()
+            for base in _split_java_types(raw):
+                if base:
+                    edges.append((nid, base, "inherits"))
+
+        if implements_raw and implements_raw.strip():
+            raw = implements_raw.strip()
+            if raw.startswith("implements"):
+                raw = raw[10:].strip()
+            for iface in _split_java_types(raw):
+                if iface:
+                    edges.append((nid, iface, "implements"))
+
+    # --- methods (avoid false positives via keyword filter) ---
+    for lineno, line_text in enumerate(text.splitlines(), 1):
+        for m in _JAVA_METHOD_RE.finditer(line_text):
+            mname = m.group(1)
+            if mname and len(mname) > 1 and mname not in _JAVA_KEYWORDS:
+                mid = _nid("function", rel, f"{mname}_{lineno}")
+                nodes.append((mid, "function", mname, rel, lineno, None))
+                edges.append((fid, mid, "contains"))
+
+    # --- file-level annotations (Spring stereotypes etc.) ---
+    annotations = set()
+    for m in _JAVA_ANNOTATION_RE.finditer(text):
+        annotations.add(m.group(1))
+    # Store notable annotations as a special node (for searchability)
+    notable = annotations & {
+        'Service', 'Repository', 'Controller', 'RestController',
+        'Component', 'Configuration', 'Entity', 'Mapper',
+        'SpringBootApplication', 'Audited',
+    }
+    if notable:
+        aid = _nid("annotation", rel, ",".join(sorted(notable)))
+        nodes.append((aid, "annotation", ",".join(sorted(notable)), rel, None, None))
+
+
+# ---------------------------------------------------------------------------
+# Structured file parsing (XML, YAML, SQL, etc.)
+# ---------------------------------------------------------------------------
+
+
+def _parse_structured(path: Path, rel: str, nodes: list, edges: list) -> None:
+    """Parse non-source files (XML, YAML, SQL, properties, JSON) as file nodes."""
+    fid = _nid("file", rel, rel)
+    nodes.append((fid, "file", rel, rel, None, None))
+
+    ext = path.suffix.lower()
+
+    if ext == ".xml":
+        _parse_xml_refs(path, rel, fid, nodes, edges)
+    elif ext in (".yaml", ".yml"):
+        _parse_yaml_refs(path, rel, fid, nodes, edges)
+    elif ext == ".sql":
+        _parse_sql_refs(path, rel, fid, nodes, edges)
+
+
+def _parse_xml_refs(path: Path, rel: str, fid: str, nodes: list, edges: list) -> None:
+    """Extract references from XML files (pom.xml, Spring configs, Liquibase)."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return
+
+    # Liquibase: extract table names from changeSets
+    for m in re.finditer(r'tableName="(\w+)"', text):
+        table = m.group(1)
+        tid = _nid("table", rel, table)
+        nodes.append((tid, "table", table, rel, None, None))
+        edges.append((fid, tid, "contains"))
+
+    # Spring beans: class references
+    for m in re.finditer(r'class="([\w.]+)"', text):
+        edges.append((fid, m.group(1), "imports"))
+
+
+def _parse_yaml_refs(path: Path, rel: str, fid: str, nodes: list, edges: list) -> None:
+    """Extract references from YAML files (OpenAPI specs, Spring configs)."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return
+
+    # OpenAPI: extract path definitions
+    for m in re.finditer(r"^  (/[\w/{}\-]+):", text, re.MULTILINE):
+        epath = m.group(1)
+        eid = _nid("endpoint", rel, epath)
+        nodes.append((eid, "endpoint", epath, rel, None, None))
+        edges.append((fid, eid, "contains"))
+
+    # $ref references to other files
+    for m in re.finditer(r"\$ref:\s*['\"]?([^'\"#\s]+)", text):
+        ref = m.group(1).strip()
+        if ref and not ref.startswith("#"):
+            edges.append((fid, ref, "imports"))
+
+
+def _parse_sql_refs(path: Path, rel: str, fid: str, nodes: list, edges: list) -> None:
+    """Extract table references from SQL files."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return
+
+    for m in re.finditer(
+        r'(?:CREATE\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|FROM|JOIN)\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)',
+        text, re.IGNORECASE,
+    ):
+        table = m.group(1).lower()
+        if table not in ('select', 'where', 'set', 'values', 'into', 'table'):
+            tid = _nid("table", rel, table)
+            nodes.append((tid, "table", table, rel, None, None))
+            edges.append((fid, tid, "contains"))
 
 
 # ---------------------------------------------------------------------------
@@ -261,10 +466,17 @@ def _parse_generic(path: Path, rel: str, nodes: list, edges: list) -> None:
 # ---------------------------------------------------------------------------
 
 
+_STRUCTURED_EXTS = frozenset({".xml", ".yaml", ".yml", ".sql", ".properties", ".json"})
+
+
 def _parse_file(path: Path, rel: str, nodes: list, edges: list) -> None:
     """Route a source file to the appropriate parser."""
     if path.suffix == ".py":
         _parse_py(path, rel, nodes, edges)
+    elif path.suffix == ".java":
+        _parse_java(path, rel, nodes, edges)
+    elif path.suffix.lower() in _STRUCTURED_EXTS:
+        _parse_structured(path, rel, nodes, edges)
     else:
         _parse_generic(path, rel, nodes, edges)
 
@@ -280,6 +492,11 @@ def _link_tests(conn: sqlite3.Connection) -> None:
         row[0]: row[1]
         for row in conn.execute("SELECT file, id FROM nodes WHERE kind='file'")
     }
+    # Build stem → [(rel, id)] index for O(1) lookup instead of O(n) scan
+    by_stem: dict[str, list[tuple[str, str]]] = {}
+    for rel, fid in file_map.items():
+        by_stem.setdefault(Path(rel).stem, []).append((rel, fid))
+
     inserts: list[tuple[str, str, str]] = []
 
     for rel, fid in file_map.items():
@@ -291,11 +508,8 @@ def _link_tests(conn: sqlite3.Connection) -> None:
             # Match import string to a known source file by stem/module path
             imp_parts = re.split(r"[./\\]", imp)
             imp_stem = imp_parts[-1] if imp_parts else imp
-            for known_rel, known_id in file_map.items():
-                if known_id == fid:
-                    continue
-                stem = Path(known_rel).stem
-                if imp_stem == stem or imp.endswith(f"/{stem}") or imp.endswith(f".{stem}"):
+            for known_rel, known_id in by_stem.get(imp_stem, []):
+                if known_id != fid:
                     inserts.append((fid, known_id, "tests_for"))
                     break
 
@@ -310,8 +524,9 @@ def _link_tests(conn: sqlite3.Connection) -> None:
 def _resolve_file_deps(conn: sqlite3.Connection) -> None:
     """Resolve import strings to file→file depends_on edges.
 
-    Matches import-path stems to known file stems.  Skips ambiguous stems
-    with more than five candidates to reduce false positives.
+    For Java files: uses package-path matching derived from the standard
+    Maven layout (src/main/java/com/foo/Bar.java → com.foo.Bar).
+    For other languages: falls back to stem-based matching.
     """
     file_nodes: dict[str, str] = {
         row[0]: row[1]
@@ -321,21 +536,134 @@ def _resolve_file_deps(conn: sqlite3.Connection) -> None:
     for rel, fid in file_nodes.items():
         by_stem.setdefault(Path(rel).stem, []).append((rel, fid))
 
+    # ---- Java package-path index ----
+    # Build qualified_name → fid mapping from file paths
+    java_qualified: dict[str, str] = {}   # "com.cybergrid.foo.Bar" → fid
+    for rel, fid in file_nodes.items():
+        if not rel.endswith(".java"):
+            continue
+        parts = Path(rel).parts
+        # Find the "java" directory marker (after "main" or "test")
+        java_marker = None
+        for i, p in enumerate(parts):
+            if p == "java" and i > 0 and parts[i - 1] in ("main", "test"):
+                java_marker = i + 1
+                break
+        if java_marker and java_marker < len(parts):
+            pkg_parts = list(parts[java_marker:-1])
+            class_name = Path(rel).stem
+            qualified = ".".join(pkg_parts + [class_name])
+            java_qualified[qualified] = fid
+
+    # ---- Resolve imports ----
     inserts: list[tuple[str, str, str]] = []
     for src_id, imp_str in conn.execute(
         "SELECT src, dst FROM edges WHERE kind='imports'"
     ):
-        parts = re.split(r"[./\\]", imp_str)
-        stem = parts[-1] if parts else imp_str
-        if not stem or len(stem) < 2:
+        target_fid = None
+
+        # 1) Java exact qualified match: "com.cybergrid.foo.Bar"
+        target_fid = java_qualified.get(imp_str)
+
+        # 2) Java static import: "com.cybergrid.foo.Bar.METHOD" → try parent
+        if not target_fid and "." in imp_str:
+            parent = imp_str.rsplit(".", 1)[0]
+            target_fid = java_qualified.get(parent)
+
+        # 3) Java wildcard: "com.cybergrid.foo.*" → match all in package
+        if not target_fid and imp_str.endswith(".*"):
+            pkg_prefix = imp_str[:-2] + "."
+            for qn, fid in java_qualified.items():
+                if qn.startswith(pkg_prefix) and fid != src_id:
+                    inserts.append((src_id, fid, "depends_on"))
             continue
-        candidates = by_stem.get(stem, [])
-        if not candidates or len(candidates) > 5:
+
+        # 4) Stem-based fallback with package-path disambiguation
+        if not target_fid:
+            parts = re.split(r"[./\\]", imp_str)
+            stem = parts[-1] if parts else imp_str
+            if stem and len(stem) >= 2:
+                candidates = by_stem.get(stem, [])
+                if candidates and len(candidates) <= 20:
+                    # Try to match by package directory structure
+                    imp_path = "/".join(parts)
+                    best = None
+                    for known_rel, known_id in candidates:
+                        if known_id == src_id:
+                            continue
+                        if imp_path in known_rel:
+                            best = known_id
+                            break
+                    if not best:
+                        # Take first non-self candidate
+                        for known_rel, known_id in candidates:
+                            if known_id != src_id:
+                                best = known_id
+                                break
+                    target_fid = best
+
+        if target_fid and target_fid != src_id:
+            inserts.append((src_id, target_fid, "depends_on"))
+
+    conn.executemany("INSERT OR IGNORE INTO edges VALUES (?,?,?)", inserts)
+
+
+# ---------------------------------------------------------------------------
+# Inheritance resolution
+# ---------------------------------------------------------------------------
+
+
+def _link_inheritance(conn: sqlite3.Connection) -> None:
+    """Resolve inherits/implements edges: class names → file-level edges.
+
+    After parsing, inherits/implements edges point from a class node ID to a
+    plain class name string.  This function resolves those names to actual
+    class/interface nodes and creates file-level inheritance edges.
+    """
+    # Build class/interface/enum name → [(node_id, file)] index
+    class_index: dict[str, list[tuple[str, str]]] = {}
+    for nid, name, file in conn.execute(
+        "SELECT id, name, file FROM nodes WHERE kind IN ('class','interface','enum')"
+    ):
+        class_index.setdefault(name, []).append((nid, file))
+
+    # Build file → file_node_id mapping
+    file_to_fid: dict[str, str] = {}
+    for fid, file in conn.execute("SELECT id, file FROM nodes WHERE kind='file'"):
+        file_to_fid[file] = fid
+
+    inserts: list[tuple[str, str, str]] = []
+
+    for src_id, target_name, kind in conn.execute(
+        "SELECT src, dst, kind FROM edges WHERE kind IN ('inherits', 'implements')"
+    ):
+        candidates = class_index.get(target_name, [])
+        if not candidates:
             continue
-        for known_rel, known_id in candidates:
-            if known_id != src_id:
-                inserts.append((src_id, known_id, "depends_on"))
-                break
+
+        # Find source node's file
+        src_row = conn.execute("SELECT file FROM nodes WHERE id=?", (src_id,)).fetchone()
+        if not src_row:
+            continue
+        src_file = src_row[0]
+        src_fid = file_to_fid.get(src_file)
+
+        # Pick best target: prefer same service, then any
+        src_service = src_file.split("/")[0] if "/" in src_file else ""
+        best_fid = None
+        for target_nid, target_file in candidates:
+            if target_file == src_file:
+                continue  # skip self
+            target_fid = file_to_fid.get(target_file)
+            if not target_fid:
+                continue
+            target_service = target_file.split("/")[0] if "/" in target_file else ""
+            best_fid = target_fid
+            if target_service == src_service:
+                break  # prefer same service
+
+        if best_fid and src_fid and src_fid != best_fid:
+            inserts.append((src_fid, best_fid, kind))
 
     conn.executemany("INSERT OR IGNORE INTO edges VALUES (?,?,?)", inserts)
 
@@ -420,6 +748,9 @@ def build(root: Path) -> Path:
     with _timed("resolve file deps"):
         _resolve_file_deps(conn)
 
+    with _timed("link inheritance"):
+        _link_inheritance(conn)
+
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('root',?)", (str(root),))
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('files_parsed',?)", (str(file_count),))
     conn.commit()
@@ -503,6 +834,7 @@ def update(root: Path) -> tuple[Path, list[str]]:
 
     _link_tests(conn)
     _resolve_file_deps(conn)
+    _link_inheritance(conn)
 
     conn.execute(
         "INSERT OR REPLACE INTO meta VALUES ('files_parsed',?)",
