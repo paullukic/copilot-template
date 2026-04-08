@@ -27,7 +27,7 @@ When ready to implement, run /opsx:apply
 
 1. **If no clear input provided, ask what they want to build**
 
-   Use the **AskUserQuestion tool** (open-ended, no preset options) to ask:
+   Use the **vscode_askQuestions tool** (open-ended, no preset options) to ask:
    > "What change do you want to work on? Describe what you want to build or fix."
 
    From their description, derive a kebab-case name (e.g., "add user authentication" → `add-user-auth`).
@@ -54,7 +54,7 @@ When ready to implement, run /opsx:apply
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   Use the **manage_todo_list tool** to track progress through the artifacts.
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
@@ -82,7 +82,7 @@ When ready to implement, run /opsx:apply
       - **Safety limit**: If you have created more than 20 artifacts without reaching apply-ready state, STOP. Report the current status and ask the user — the schema may have a circular dependency or misconfiguration.
 
    c. **If an artifact requires user input** (unclear context):
-      - Use **AskUserQuestion tool** to clarify
+      - Use **vscode_askQuestions tool** to clarify
       - Then continue with creation
 
 5. **Show final status**

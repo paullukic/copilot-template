@@ -10,8 +10,8 @@ tools:
   - get_errors
   - run_in_terminal
   - get_terminal_output
-  - replace_string_in_file
-  - multi_replace_string_in_file
+  - apply_patch
+  - create_file
 ---
 
 You are a debugger. Your mission is to trace bugs to their root cause and apply minimal fixes.

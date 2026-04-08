@@ -21,7 +21,7 @@ Implement tasks from an OpenSpec change.
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
+   - If ambiguous, run `openspec list --json` to get available changes and use the **vscode_askQuestions tool** to let the user select
 
    Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
 
@@ -74,7 +74,7 @@ Implement tasks from an OpenSpec change.
 6. **Classify change size** (determines which steps to run)
 
    Count total lines changed across all tasks (estimate from task descriptions and file reads).
-   - **Quick** (≤3 tasks AND ≤50 lines changed, no new files created): Run steps 7 → 10 → 11 (skip self-verification gate and auto-review).
+   - **Quick** (≤3 tasks AND ≤50 lines changed, no new files created): Run steps 7 → 9A → 10 → 11 (skip full self-verification gate and full auto-review).
    - **Standard** (everything else): Run all steps 7 → 12.
 
    Announce: "Change classified as **quick/standard** — [skipping/running] verification gates."
@@ -87,7 +87,7 @@ Implement tasks from an OpenSpec change.
    - Show which task is being worked on
    - **Read all source files** you'll modify — in full — before making any changes
    - **Verify field/type names** exist in the actual codebase: run `grep_search` for each field/type name before using it. If a name cannot be found: STOP, report what's missing, and ask the user. Do NOT assume alternative names or invent types.
-   - Make the code changes required using file editing tools (replace_string_in_file, create_file, etc.)
+   - Make the code changes required using file editing tools (`apply_patch`, `create_file`, etc.)
    - Every task MUST result in actual file edits, not descriptions of what to do
    - Keep changes minimal and focused
    - **Before marking complete**: verify you made actual file changes for this task. If a task produced zero file edits, it is not complete — either implement it or ask the user if the task should be removed.
@@ -117,6 +117,12 @@ Implement tasks from an OpenSpec change.
    - If **REQUEST_CHANGES**: add findings as tasks under "Review Fixes" (use "Round 2" heading if section already exists). Implement fixes, then re-invoke Reviewer on changed files only.
    - **Circuit breaker**: After 3 review cycles on the same code area, STOP and ask the user. Do NOT continue without explicit approval.
    - If **APPROVE**: proceed to build verification.
+
+9A. **Lightweight review gate** (quick changes only)
+
+   - Run a targeted review pass on changed files only (business logic correctness + code logic correctness).
+   - If issues are found, fix them before build verification.
+   - Keep this pass lightweight, but do not skip it.
 
 10. **Build verification**
 

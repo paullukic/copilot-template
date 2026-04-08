@@ -14,7 +14,7 @@ Initialize a new project with this copilot template. Auto-detect the tech stack 
 
 ## Step 1: Gather Info
 
-Ask the user these questions using the **AskUserQuestion tool** (wait for answers before proceeding):
+Ask the user these questions using the **vscode_askQuestions tool** (wait for answers before proceeding):
 
 1. **Target project path** — "What is the full path to the project you want to initialize?" (If provided as argument, use that.)
 2. **Which AI tools should I set up for?**
@@ -22,6 +22,8 @@ Ask the user these questions using the **AskUserQuestion tool** (wait for answer
    - VS Code Copilot (`.github/copilot-instructions.md`, `.github/agents/`, `.github/skills/`, `.github/prompts/`)
    - Both (recommended default)
 3. **Any sections to skip entirely?** (e.g., i18n, API design, data layer) — optional, user can say "none"
+4. **Any additional project-specific coding/review rules?**
+  - Ask for concise bullets (for example: mandatory architecture patterns, domain invariants, naming restrictions, module boundaries, logging/security constraints).
 
 ## Step 2: Detect Tech Stack
 
@@ -95,6 +97,7 @@ Using the detected info from Step 2, replace all `_TBD_` placeholders and `<!-- 
 - Data Layer, Testing, API Design, i18n, Errors and Logging — fill or delete as appropriate
 - Remove `<!-- FILL: ... -->` comments after filling
 - Delete sections the user said to skip
+- Add user-provided project-specific rules under `## Project-Specific Rules` (create concise bullet points; do not duplicate existing global rules)
 
 **In `CLAUDE.md`:**
 - Quick Reference commands table
@@ -108,9 +111,10 @@ Using the detected info from Step 2, replace all `_TBD_` placeholders and `<!-- 
 ## Step 5: Verify
 
 1. Grep target project instruction files for remaining `_TBD_` or `<!-- FILL` markers
-2. If any remain, ask the user for the missing info
-3. Show a summary of all files created/modified
-4. Ask if the user wants to commit the changes
+2. If any remain, ask the user for the missing info and continue filling until the grep returns zero matches
+3. Grep copied agent/skill files for deprecated tool aliases (`AskUserQuestion`, `TodoWrite`, `replace_string_in_file`, `multi_replace_string_in_file`) and replace with runtime-supported names where needed
+4. Show a summary of all files created/modified
+5. Ask if the user wants to commit the changes
 
 ## Guardrails
 
@@ -119,3 +123,4 @@ Using the detected info from Step 2, replace all `_TBD_` placeholders and `<!-- 
 - If the target already has `CLAUDE.md` or `copilot-instructions.md`, warn and ask (merge/overwrite/skip).
 - Keep the communication style, implementation workflow, and review role sections intact — those are template features.
 - Prefer what the project already does over generic defaults.
+- Initialization is complete only when there are zero `_TBD_` and `<!-- FILL` markers in copied instruction files.
