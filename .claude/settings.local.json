@@ -13,7 +13,21 @@
       "Bash(mkdir -p __TRACKED_VAR__/hooks)",
       "Bash(cp /home/paul/cybergrid/.github/code-graph/post-commit __TRACKED_VAR__/hooks/post-commit)",
       "Bash(cp /home/paul/cybergrid/.github/code-graph/post-merge __TRACKED_VAR__/hooks/post-merge)",
-      "Bash(cp /home/paul/cybergrid/.github/code-graph/post-rewrite __TRACKED_VAR__/hooks/post-rewrite)"
+      "Bash(cp /home/paul/cybergrid/.github/code-graph/post-rewrite __TRACKED_VAR__/hooks/post-rewrite)",
+      "Bash(python -c ':*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('compilerOptions',{}\\).get\\('paths',{}\\), indent=2\\)\\); print\\('baseUrl:', d.get\\('compilerOptions',{}\\).get\\('baseUrl','\\(none\\)'\\)\\)\")",
+      "Bash(cp /c/paul/code/copilot-template/.github/code-graph/builder.py /c/paul/code/trojkatech/TT-ResourceHub-UI/.github/code-graph/builder.py)",
+      "Bash(python .github/code-graph/server.py --build)",
+      "Bash(cp:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python .github/code-graph/server.py --visualize)",
+      "Bash(cp /c/paul/code/copilot-template/.github/code-graph/static/styles.css /c/paul/code/trojkatech/TT-ResourceHub-UI/.github/code-graph/static/)",
+      "Bash(cp /c/paul/code/copilot-template/.github/code-graph/static/panel.js /c/paul/code/trojkatech/TT-ResourceHub-UI/.github/code-graph/static/)",
+      "Bash(cp /c/paul/code/copilot-template/.github/code-graph/static/graph.js /c/paul/code/trojkatech/TT-ResourceHub-UI/.github/code-graph/static/)",
+      "Bash(wsl find:*)",
+      "Bash(git -C /c/paul/code/copilot-template log --oneline -- cybergrid)",
+      "Bash(wsl ls:*)",
+      "Bash(wsl.exe -e ls /home/paul/cybergrid/)"
     ]
   },
   "enableAllProjectMcpServers": true,

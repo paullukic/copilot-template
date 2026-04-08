@@ -209,6 +209,11 @@ _SHELL = r"""<!DOCTYPE html>
       <div id="sym-items"></div>
     </div>
 
+    <div id="node-list-section">
+      <div class="sec-title">Nodes <span id="node-list-count"></span></div>
+      <div id="node-list"></div>
+    </div>
+
     <div class="sec-title">Edges</div>
     <label class="filter-row">
       <input type="checkbox" data-etype="depends_on" checked>

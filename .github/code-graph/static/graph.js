@@ -113,6 +113,7 @@ const Graph = (() => {
   let selectedId = null;
   let sim        = null;
   let curNodes   = [];
+  let _clickTimer = null;
 
   /* ==============================================================
      Shared helpers
@@ -211,10 +212,12 @@ const Graph = (() => {
   function deselect() {
     selectedId = null;
     Panel.hideNodeInfo();
+    Panel.highlightNodeListItem(null);
     if (document.getElementById("show-all-cb").checked) drawAllEdgesInView();
     else clearEdges();
-    gNode.selectAll("circle").attr("opacity", 1).attr("stroke", "#000").attr("stroke-width", 0.5).attr("r", d => d._r || 5);
-    gLbl.selectAll("text").attr("opacity", 1);
+    gNode.selectAll("circle").transition().duration(300)
+      .attr("opacity", 1).attr("stroke", "#0008").attr("stroke-width", 0.5).attr("r", d => d._r || 5);
+    gLbl.selectAll("text").transition().duration(300).attr("opacity", 1);
   }
 
   /* ==============================================================
@@ -252,8 +255,16 @@ const Graph = (() => {
       .call(drag())
       .on("mouseover", (e, d) => showTip(e, d.label, d.files.toLocaleString() + " files", d.classes + " classes │ " + d.functions + " functions"))
       .on("mousemove", moveTip).on("mouseout", hideTip)
-      .on("click",    (e, d) => { e.stopPropagation(); selectService(d); })
-      .on("dblclick", (e, d) => { e.stopPropagation(); renderFileView(d.id); });
+      .on("click",    (e, d) => {
+        e.stopPropagation();
+        if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; return; }
+        _clickTimer = setTimeout(() => { _clickTimer = null; selectService(d); }, 250);
+      })
+      .on("dblclick", (e, d) => {
+        e.stopPropagation();
+        if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
+        renderFileView(d.id);
+      });
 
     gLbl.selectAll("text")
       .data(curNodes, d => d.id).join("text")
@@ -262,10 +273,14 @@ const Graph = (() => {
       .attr("fill", "#ccc").attr("pointer-events", "none")
       .text(d => d.label);
 
+    // Service-level links for layout
+    const svcLinks = graphData.serviceEdges.map(e => ({ source: e.s, target: e.t }));
+
     sim = d3.forceSimulation(curNodes)
       .force("charge",    d3.forceManyBody().strength(-400))
       .force("center",    d3.forceCenter(W / 2, H / 2))
       .force("collision", d3.forceCollide(d => svcR(d) + 18))
+      .force("link",      d3.forceLink(svcLinks).id(d => d.id).distance(120).strength(0.15))
       .alphaDecay(0.03);
 
     const placeSvc = () => {
@@ -274,10 +289,16 @@ const Graph = (() => {
       tickEdges();
     };
     settleAndPlace(sim, placeSvc);
+
+    Panel.buildNodeList(curNodes, {
+      colorFn: d => SVC_COLORS(d.id),
+      labelFn: d => d.label,
+      subFn:   d => d.files + " files, " + d.classes + " classes, " + d.functions + " fns",
+      onClickFn: d => { panToNode(d); selectService(d); },
+    });
   }
 
   function selectService(d) {
-    if (selectedId === d.id) { deselect(); return; }
     selectedId = d.id;
 
     const outE = svcAdj.out.get(d.id) || [];
@@ -311,6 +332,7 @@ const Graph = (() => {
     Panel.showNodeInfo(d.label,
       d.files.toLocaleString() + " files │ " + d.classes + " classes │ " + d.functions + " functions");
     Panel.showServiceConnections(d);
+    Panel.highlightNodeListItem(d.id);
   }
 
   /* ==============================================================
@@ -320,7 +342,24 @@ const Graph = (() => {
     view = "files:" + svcName; selectedId = null;
     clearGraph(); stopSim();
 
-    curNodes = (graphData.filesByService[svcName] || []).map(f => ({ ...f, _r: 5 }));
+    // Compute connection count per file for node sizing
+    const connCount = new Map();
+    const svcFiles = (graphData.filesByService[svcName] || []);
+    const svcFileIds = new Set(svcFiles.map(f => f.id));
+    for (const [kind, list] of Object.entries(graphData.edges)) {
+      for (const e of list) {
+        if (svcFileIds.has(e.s) && svcFileIds.has(e.t)) {
+          connCount.set(e.s, (connCount.get(e.s) || 0) + 1);
+          connCount.set(e.t, (connCount.get(e.t) || 0) + 1);
+        }
+      }
+    }
+    const maxConn = Math.max(1, ...connCount.values());
+    curNodes = svcFiles.map(f => {
+      const cc = connCount.get(f.id) || 0;
+      const r = 3 + Math.sqrt(cc / maxConn) * 8;
+      return { ...f, _r: r, _conns: cc };
+    });
 
     document.getElementById("crumb-text").textContent = svcName;
     document.getElementById("back-btn").style.display = "inline-block";
@@ -345,19 +384,26 @@ const Graph = (() => {
 
     gNode.selectAll("circle")
       .data(curNodes, d => d.id).join("circle")
-      .attr("r", 5)
+      .attr("r",       d => d._r)
       .attr("fill",    d => fileColor(d.ext))
       .attr("stroke",  "#0008").attr("stroke-width", 0.5)
       .attr("cursor",  "pointer")
       .call(drag())
       .on("mouseover", (e, d) => {
         const syms = graphData.symbolsByFile[d.id] || [];
-        showTip(e, d.label, d.file, syms.length ? syms.length + " symbols" : "no symbols");
+        showTip(e, d.label, d.file,
+          (d._conns ? d._conns + " connections" : "") +
+          (syms.length ? " · " + syms.length + " symbols" : ""));
       })
       .on("mousemove", moveTip).on("mouseout", hideTip)
-      .on("click",    (e, d) => { e.stopPropagation(); selectFile(d); })
+      .on("click",    (e, d) => {
+        e.stopPropagation();
+        if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; return; }
+        _clickTimer = setTimeout(() => { _clickTimer = null; selectFile(d); }, 250);
+      })
       .on("dblclick", (e, d) => {
         e.stopPropagation();
+        if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
         if ((graphData.symbolsByFile[d.id] || []).length) renderSymbolView(d.id, d.label);
       });
 
@@ -368,18 +414,32 @@ const Graph = (() => {
       .attr("fill", "#bbb").attr("pointer-events", "none")
       .text(d => d.label);
 
-    const fileCharge = curNodes.length > 500 ? -30 : curNodes.length > 200 ? -55 : -90;
-    const fileCollide = curNodes.length > 500 ? 12 : curNodes.length > 200 ? 18 : 28;
+    // Build link data from edges for force layout
+    const linkData = [];
+    for (const [kind, list] of Object.entries(graphData.edges)) {
+      for (const e of list) {
+        if (svcFileIds.has(e.s) && svcFileIds.has(e.t)) {
+          linkData.push({ source: e.s, target: e.t });
+        }
+      }
+    }
+
+    const n = curNodes.length;
+    const fileCharge = n > 500 ? -20 : n > 200 ? -40 : -70;
+    const linkDist = n > 500 ? 30 : n > 200 ? 50 : 80;
+    const linkStr = n > 500 ? 0.03 : n > 200 ? 0.05 : 0.08;
+    const fileCollide = n > 500 ? 8 : n > 200 ? 12 : 18;
 
     sim = d3.forceSimulation(curNodes)
       .force("charge",    d3.forceManyBody().strength(fileCharge))
       .force("center",    d3.forceCenter(W / 2, H / 2))
-      .force("collision", d3.forceCollide(fileCollide))
+      .force("collision", d3.forceCollide(d => d._r + 4))
+      .force("link",      d3.forceLink(linkData).id(d => d.id).distance(linkDist).strength(linkStr))
       .alphaDecay(0.03);
 
     const placeFile = () => {
       gNode.selectAll("circle").attr("cx", d => d.x).attr("cy", d => d.y);
-      gLbl.selectAll("text").attr("x", d => d.x + 7).attr("y", d => d.y + 3);
+      gLbl.selectAll("text").attr("x", d => d.x + d._r + 3).attr("y", d => d.y + 3);
       tickEdges();
     };
     settleAndPlace(sim, placeFile);
@@ -388,25 +448,51 @@ const Graph = (() => {
     if (document.querySelector('[data-etype="depends_on"]').checked) {
       drawAllEdgesInView(); document.getElementById("show-all-cb").checked = true;
     }
+
+    Panel.buildNodeList(curNodes, {
+      colorFn: d => fileColor(d.ext),
+      labelFn: d => d.label,
+      pathFn:  d => d.file,
+      onClickFn: d => { panToNode(d); selectFile(d); },
+    });
   }
 
   function selectFile(d) {
-    if (selectedId === d.id) { deselect(); return; }
     selectedId = d.id;
 
     const lines = drawEdgesForNode(d);
     const connIds = new Set([d.id, ...lines.map(e => e.s), ...lines.map(e => e.t)]);
 
-    gNode.selectAll("circle")
-      .attr("opacity",      n => connIds.has(n.id) ? 1 : 0.08)
+    // Animated transitions
+    gNode.selectAll("circle").transition().duration(300)
+      .attr("opacity",      n => connIds.has(n.id) ? 1 : 0.06)
       .attr("stroke",       n => n.id === d.id ? "#fff" : "#0008")
-      .attr("stroke-width", n => n.id === d.id ? 2 : 0.5)
-      .attr("r",            n => n.id === d.id ? 7 : 5);
-    gLbl.selectAll("text").attr("opacity", n => connIds.has(n.id) ? 1 : 0.06);
+      .attr("stroke-width", n => n.id === d.id ? 2.5 : 0.5)
+      .attr("r",            n => n.id === d.id ? d._r + 4 : n._r);
+    gLbl.selectAll("text").transition().duration(300)
+      .attr("opacity", n => connIds.has(n.id) ? 1 : 0.04);
+
+    // Pan to center of the selected node's neighborhood
+    const neighbors = curNodes.filter(n => connIds.has(n.id));
+    if (neighbors.length > 0) {
+      const cx = neighbors.reduce((s, n) => s + n.x, 0) / neighbors.length;
+      const cy = neighbors.reduce((s, n) => s + n.y, 0) / neighbors.length;
+      // Scale based on spread of neighbors
+      const spread = Math.max(
+        ...neighbors.map(n => Math.hypot(n.x - cx, n.y - cy)),
+        100
+      );
+      const scale = Math.min(Math.max(Math.min(W, H) / (spread * 3), 0.3), 3);
+      const tx = W / 2 - cx * scale;
+      const ty = H / 2 - cy * scale;
+      svg.transition().duration(500)
+        .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+    }
 
     Panel.showNodeInfo(d.label, d.file);
     Panel.showFileConnections(d);
     Panel.showSymbolList(d.id);
+    Panel.highlightNodeListItem(d.id);
   }
 
   /* ==============================================================
@@ -470,6 +556,13 @@ const Graph = (() => {
     };
     settleAndPlace(sim, placeSym);
 
+    Panel.buildNodeList(curNodes, {
+      colorFn: d => symColor(d.kind),
+      labelFn: d => d.name,
+      subFn:   d => d.kind + (d.line ? " — line " + d.line : ""),
+      onClickFn: d => { panToNode(d); selectSymbol(d); },
+    });
+
     // Draw symbol-level edges
     const nm = nodeMap(), lines = [];
     for (const [kind, elist] of Object.entries(graphData.symbolEdges))
@@ -479,12 +572,12 @@ const Graph = (() => {
   }
 
   function selectSymbol(d) {
-    if (selectedId === d.id) { deselect(); return; }
     selectedId = d.id;
     gNode.selectAll("circle")
       .attr("stroke",       n => n.id === d.id ? "#fff" : "#0008")
       .attr("stroke-width", n => n.id === d.id ? 2 : 0.5);
     Panel.showNodeInfo(d.name, d.kind + " │ Line " + (d.line || "?"));
+    Panel.highlightNodeListItem(d.id);
   }
 
   /* ==============================================================
@@ -512,6 +605,15 @@ const Graph = (() => {
     gLbl.selectAll("text").attr("opacity", opFn);
   }
 
+  /** Pan + zoom so a node is centered on screen. */
+  function panToNode(d) {
+    const scale = 1.5;
+    const tx = W / 2 - d.x * scale;
+    const ty = H / 2 - d.y * scale;
+    svg.transition().duration(500)
+      .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  }
+
   function applySearch(q) {
     gNode.selectAll("circle").attr("opacity", !q ? 1 : d =>
       (d.label?.toLowerCase().includes(q) || d.file?.toLowerCase().includes(q) || d.name?.toLowerCase().includes(q)) ? 1 : 0.04);
@@ -536,7 +638,7 @@ const Graph = (() => {
     activeTypes, drawAllEdgesInView, clearEdges, deselect,
 
     // Panel callbacks
-    onEdgeFilterChange, filterCurrentView, applySearch,
+    onEdgeFilterChange, filterCurrentView, applySearch, panToNode,
   };
 
 })();

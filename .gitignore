@@ -9,6 +9,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
+__pycache__/
 
 # Environment
 .env

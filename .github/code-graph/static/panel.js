@@ -277,6 +277,188 @@ const Panel = (() => {
     return d.innerHTML;
   }
 
+  /* ---- Node list (folder tree) ---- */
+  function buildNodeList(nodes, { colorFn, labelFn, subFn, onClickFn, pathFn }) {
+    const section = $("node-list-section");
+    const container = $("node-list");
+    const countEl = $("node-list-count");
+    container.innerHTML = "";
+
+    if (!nodes.length) { section.classList.remove("visible"); return; }
+    section.classList.add("visible");
+    countEl.textContent = "(" + nodes.length + ")";
+
+    // If pathFn is provided, build a folder tree; otherwise flat list
+    if (pathFn) {
+      _buildTree(container, nodes, { colorFn, labelFn, pathFn, onClickFn });
+    } else {
+      _buildFlat(container, nodes, { colorFn, labelFn, subFn, onClickFn });
+    }
+  }
+
+  function _buildFlat(container, nodes, { colorFn, labelFn, subFn, onClickFn }) {
+    const sorted = [...nodes].sort((a, b) => {
+      const la = labelFn(a).toLowerCase(), lb = labelFn(b).toLowerCase();
+      return la < lb ? -1 : la > lb ? 1 : 0;
+    });
+
+    for (const node of sorted) {
+      _appendNodeItem(container, node, { colorFn, labelFn, subFn, onClickFn });
+    }
+  }
+
+  function _buildTree(container, nodes, { colorFn, labelFn, pathFn, onClickFn }) {
+    // Build folder structure
+    const tree = {};
+    for (const node of nodes) {
+      const fullPath = pathFn(node) || labelFn(node);
+      const parts = fullPath.replace(/\\/g, "/").split("/");
+      let cursor = tree;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const dir = parts[i];
+        if (!cursor[dir]) cursor[dir] = { _children: {}, _files: [] };
+        cursor = cursor[dir]._children;
+      }
+      // Leaf node
+      const dirKey = parts.length > 1 ? parts[parts.length - 2] : "_root";
+      if (!cursor._files) {
+        // We're at a level that didn't have a folder entry yet
+        cursor._files = [];
+        cursor._children = cursor._children || {};
+      }
+      // Store at current level
+      const parentPath = parts.slice(0, -1).join("/");
+      if (!tree._byDir) tree._byDir = {};
+      if (!tree._byDir[parentPath]) tree._byDir[parentPath] = [];
+      tree._byDir[parentPath].push(node);
+    }
+
+    // Simpler approach: group by directory, sort dirs, render collapsible
+    const byDir = {};
+    for (const node of nodes) {
+      const fullPath = (pathFn(node) || "").replace(/\\/g, "/");
+      const lastSlash = fullPath.lastIndexOf("/");
+      const dir = lastSlash >= 0 ? fullPath.substring(0, lastSlash) : "";
+      if (!byDir[dir]) byDir[dir] = [];
+      byDir[dir].push(node);
+    }
+
+    const sortedDirs = Object.keys(byDir).sort();
+
+    // Find common prefix to trim
+    let commonPrefix = "";
+    if (sortedDirs.length > 1) {
+      const first = sortedDirs[0], last = sortedDirs[sortedDirs.length - 1];
+      let i = 0;
+      while (i < first.length && i < last.length && first[i] === last[i]) i++;
+      commonPrefix = first.substring(0, first.lastIndexOf("/", i) + 1);
+    } else if (sortedDirs.length === 1 && sortedDirs[0].includes("/")) {
+      commonPrefix = sortedDirs[0].substring(0, sortedDirs[0].lastIndexOf("/") + 1);
+    }
+
+    for (const dir of sortedDirs) {
+      const displayDir = dir.substring(commonPrefix.length) || "/";
+      const files = byDir[dir].sort((a, b) => {
+        const la = labelFn(a).toLowerCase(), lb = labelFn(b).toLowerCase();
+        return la < lb ? -1 : la > lb ? 1 : 0;
+      });
+
+      // Folder header
+      const folder = document.createElement("div");
+      folder.className = "nl-folder";
+
+      const header = document.createElement("div");
+      header.className = "nl-folder-header";
+
+      const chevron = document.createElement("span");
+      chevron.className = "nl-chevron open";
+      chevron.textContent = "";
+
+      const dirName = document.createElement("span");
+      dirName.className = "nl-folder-name";
+      dirName.textContent = displayDir;
+      dirName.title = dir;
+
+      const fileCount = document.createElement("span");
+      fileCount.className = "nl-folder-count";
+      fileCount.textContent = files.length;
+
+      header.appendChild(chevron);
+      header.appendChild(dirName);
+      header.appendChild(fileCount);
+
+      const contents = document.createElement("div");
+      contents.className = "nl-folder-contents";
+
+      // Collapse/expand
+      header.addEventListener("click", () => {
+        const isOpen = chevron.classList.toggle("open");
+        contents.style.display = isOpen ? "" : "none";
+      });
+
+      for (const node of files) {
+        _appendNodeItem(contents, node, {
+          colorFn, labelFn,
+          subFn: () => null, // path already shown via folder
+          onClickFn,
+        });
+      }
+
+      folder.appendChild(header);
+      folder.appendChild(contents);
+      container.appendChild(folder);
+    }
+  }
+
+  function _appendNodeItem(container, node, { colorFn, labelFn, subFn, onClickFn }) {
+    const item = document.createElement("div");
+    item.className = "nl-item";
+    item.dataset.nodeId = node.id;
+
+    const dot = document.createElement("span");
+    dot.className = "nl-dot";
+    dot.style.background = colorFn(node);
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "nl-name";
+    nameEl.appendChild(dot);
+    nameEl.appendChild(document.createTextNode(labelFn(node)));
+
+    item.appendChild(nameEl);
+
+    if (subFn) {
+      const sub = subFn(node);
+      if (sub) {
+        const pathEl = document.createElement("div");
+        pathEl.className = "nl-path";
+        pathEl.textContent = sub;
+        item.appendChild(pathEl);
+      }
+    }
+
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      container.closest("#node-list").querySelectorAll(".nl-item.active").forEach(el => el.classList.remove("active"));
+      item.classList.add("active");
+      onClickFn(node);
+    });
+
+    container.appendChild(item);
+  }
+
+  function highlightNodeListItem(nodeId) {
+    const container = $("node-list");
+    container.querySelectorAll(".nl-item.active").forEach(el => el.classList.remove("active"));
+    if (nodeId) {
+      const item = container.querySelector('[data-node-id="' + nodeId + '"]');
+      if (item) { item.classList.add("active"); item.scrollIntoView({ block: "nearest" }); }
+    }
+  }
+
+  function hideNodeList() {
+    $("node-list-section").classList.remove("visible");
+  }
+
   /* ---- Extension filters ---- */
   let activeExts = new Set();
 
@@ -345,6 +527,9 @@ const Panel = (() => {
     showSymbolList,
     buildExtFilters,
     getActiveExts,
+    buildNodeList,
+    highlightNodeListItem,
+    hideNodeList,
   };
 
 })();

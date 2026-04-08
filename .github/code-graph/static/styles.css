@@ -222,6 +222,77 @@ body {
 }
 #help-hint b { color: #667; }
 
+/* ----------------------------------------------------------------
+   Node list
+   ---------------------------------------------------------------- */
+#node-list-section { display: none !important; }
+#node-list-section.visible { display: block !important; }
+#node-list-section .sec-title {
+  display: flex; align-items: center; justify-content: space-between;
+}
+#node-list-count { font-size: 10px; color: #445; font-weight: normal; text-transform: none; letter-spacing: 0; }
+
+#node-list {
+  max-height: 40vh; overflow-y: auto; margin-bottom: 8px;
+}
+
+.nl-item {
+  padding: 4px 6px; cursor: pointer; border-radius: 3px;
+  overflow: hidden; transition: background 0.1s;
+}
+.nl-item:hover { background: #1a1d2a; }
+.nl-item.active { background: #1e2a3e; }
+
+.nl-name {
+  font-size: 11px; color: #ddd; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.nl-path {
+  font-size: 9px; color: #445; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+}
+
+.nl-dot {
+  display: inline-block; width: 7px; height: 7px;
+  border-radius: 50%; margin-right: 5px; flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Folder tree */
+.nl-folder { margin-bottom: 1px; }
+
+.nl-folder-header {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 4px; cursor: pointer; border-radius: 3px;
+  user-select: none; font-size: 11px;
+}
+.nl-folder-header:hover { background: #1a1d2a; }
+
+.nl-chevron {
+  flex-shrink: 0; width: 14px; text-align: center;
+  font-size: 9px; color: #556; transition: transform 0.15s;
+}
+.nl-chevron::before { content: "\25B6"; }
+.nl-chevron.open { transform: rotate(90deg); }
+
+.nl-folder-name {
+  color: #8899aa; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; font-weight: 500;
+}
+
+.nl-folder-count {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 9px; color: #334; min-width: 16px; text-align: right;
+}
+
+.nl-folder-contents {
+  padding-left: 14px;
+}
+
+.nl-folder-contents .nl-item {
+  padding: 2px 6px;
+}
+
 svg { display: block; }
 
 /* Label halo — dark stroke rendered behind fill text for readability */
@@ -232,3 +303,7 @@ svg { display: block; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* Selection glow filter (applied via JS) */
+svg circle { transition: r 0.3s ease, opacity 0.3s ease; }
+svg line   { transition: opacity 0.2s ease; }
