@@ -86,6 +86,7 @@ def sync_project(project: dict) -> bool:
 
     tools = set(project.get("tools", []))
     code_graph = project.get("code_graph", False)
+    log.info("  config: tools=%s, code_graph=%s", sorted(tools), code_graph)
     total = 0
 
     # Claude Code commands
