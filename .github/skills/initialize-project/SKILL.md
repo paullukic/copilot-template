@@ -327,7 +327,7 @@ If the tool calls succeed: use the returned file set and risk scores to drive th
 
 If the tool calls fail or the graph is unavailable: proceed with the standard manifest-driven flow below. Do not block on graph availability — fall back immediately and continue.
 
-Verify every finding from the current working tree via `read_file` regardless of graph output.
+Verify every finding from the current working tree by reading the file regardless of graph output.
 ```
 
 ## Step 8: Register in projects.json

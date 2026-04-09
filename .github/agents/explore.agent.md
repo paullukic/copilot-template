@@ -31,17 +31,17 @@ The caller specifies one of these — default to **medium** if unspecified:
 ## Protocol
 
 1. **Understand the question.** What specific information does the caller need? What format?
-2. **Attempt code-graph first — before reading any file:**
-   Call `get_minimal_context(task="<question being explored>")`.
-   If it succeeds: use the returned file list as your starting point. Read only those files.
-   If it fails or graph is unavailable: proceed immediately with search and read — do not block.
+2. **Attempt code-graph first — strict fallback chain (before reading any file):**
+   1. Call `get_minimal_context(task="<question being explored>")`. If it succeeds: use the returned file list as your starting point. Read only those files.
+   2. If MCP tools are unavailable or return errors: try `sqlite3 .code-graph/graph.db` directly (e.g., `SELECT * FROM nodes WHERE name LIKE '%Foo%';`).
+   3. If both MCP and sqlite3 fail or return no results: proceed with search and read.
+   Never skip to step 2 or 3 without attempting the previous step first.
 3. **Search efficiently.** Use the right tool for the job:
-   - `grep_search` for exact text/regex matches
-   - `file_search` for finding files by name/path pattern
-   - `semantic_search` for concept-based discovery
-   - `list_dir` for structure overview
-   - `read_file` for reading code (use large ranges — avoid many small reads)
-   - `fetch_webpage` for external documentation lookups
+   - Search file contents for exact text or regex matches
+   - Search for files by name or path pattern
+   - List directory structure for overview
+   - Read file contents (use large ranges — avoid many small reads)
+   - Fetch external documentation when needed
 3. **Report with evidence.** Every claim cites `file:line` with verbatim code. No vague references.
 4. **Stay in scope.** Answer what was asked. Don't suggest improvements, refactors, or fixes unless explicitly asked.
 

@@ -21,6 +21,15 @@ _JAVA_KEYWORDS = frozenset({
     'do', 'break', 'continue', 'case', 'else', 'instanceof', 'synchronized',
 })
 
+# Lines starting with these tokens are statements, not method declarations
+_STMT_PREFIX_RE = re.compile(
+    r'^\s*(?:'
+    r'(?:return|new|throw|if|for|while|switch|catch|try|else|do|break|continue|case|assert|yield)\b'
+    r'|[.*/]'  # chained calls, Javadoc, comments
+    r'|[\w<>\[\]?]+\s+\w+\s*='  # variable assignments (val x =, String x =)
+    r')'
+)
+
 _JAVA_CLASS_RE = re.compile(
     r'(?:(?:public|private|protected|abstract|final|static|strictfp)\s+)*'
     r'(class|interface|enum|@interface)\s+'
@@ -33,13 +42,15 @@ _JAVA_CLASS_RE = re.compile(
 )
 
 _JAVA_METHOD_RE = re.compile(
-    r'(?:(?:public|private|protected|static|final|abstract|synchronized|native|default|override)\s+)+'
-    r'(?:@?\w+(?:\([^)]*\))?\s+)*'
+    r'(?:(?:public|private|protected|static|final|abstract|synchronized|native|default|override)\s+)*'
     r'(?:<[^>]+>\s+)?'
-    r'[\w<>\[\]?.]+\s+'
+    r'([\w<>\[\]?.]+)\s+'
     r'(\w+)\s*\(',
     re.MULTILINE,
 )
+
+# Matches method calls: identifier followed by '(' — used for call extraction
+_JAVA_CALL_RE = re.compile(r'\b(\w+)\s*\(', re.MULTILINE)
 
 _JAVA_ANNOTATION_RE = re.compile(r'^\s*@(\w+)', re.MULTILINE)
 
@@ -154,16 +165,47 @@ def _parse_java(path: Path, rel: str, nodes: list, edges: list) -> None:
         line_starts.append(line_starts[-1] + len(ln) + 1)
 
     # Methods
+    method_scopes = []  # (method_nid, open_brace_pos, close_brace_pos)
+    # Types that appear as return-type but should disqualify a method match
+    _BAD_TYPES = frozenset({
+        'new', 'return', 'throw', 'if', 'for', 'while', 'switch', 'catch',
+        'try', 'else', 'do', 'break', 'continue', 'case', 'assert', 'super',
+        'this', 'null', 'true', 'false', 'import', 'package', 'instanceof',
+    })
     for lineno, line_text in enumerate(text.splitlines(), 1):
+        if _STMT_PREFIX_RE.match(line_text):
+            continue
         for m in _JAVA_METHOD_RE.finditer(line_text):
-            mname = m.group(1)
-            if mname and len(mname) > 1 and mname not in _JAVA_KEYWORDS:
-                pos = line_starts[lineno - 1] + m.start()
-                owner = find_scope(pos, scopes)
-                kind = "method" if owner else "function"
-                mid = nid(kind, rel, f"{mname}_{lineno}")
-                nodes.append((mid, kind, mname, rel, lineno, None))
-                edges.append((owner or fid, mid, "contains"))
+            mtype = m.group(1)
+            mname = m.group(2)
+            if not mname or len(mname) <= 1 or mname in _JAVA_KEYWORDS:
+                continue
+            if mtype in _BAD_TYPES:
+                continue
+            pos = line_starts[lineno - 1] + m.start()
+            owner = find_scope(pos, scopes)
+            kind = "method" if owner else "function"
+            mid = nid(kind, rel, f"{mname}_{lineno}")
+            nodes.append((mid, kind, mname, rel, lineno, None))
+            edges.append((owner or fid, mid, "contains"))
+            # Find method body braces for call extraction
+            abs_pos = line_starts[lineno - 1] + m.end()
+            brace_open = text.find('{', abs_pos)
+            if brace_open != -1 and (brace_open - abs_pos) < 200:
+                method_scopes.append((mid, brace_open, brace_end(text, brace_open)))
+
+    # Call extraction — scan each method body for callee names
+    for mid, body_start, body_end in method_scopes:
+        if body_end <= body_start:
+            continue
+        body = text[body_start + 1:body_end]
+        seen: set[str] = set()
+        for cm in _JAVA_CALL_RE.finditer(body):
+            callee = cm.group(1)
+            if callee and len(callee) > 1 and callee not in _JAVA_KEYWORDS and callee not in seen:
+                if callee[0].islower():  # skip constructors (PascalCase)
+                    seen.add(callee)
+                    edges.append((mid, callee, "calls"))
 
     # Notable annotations
     annotations = set()

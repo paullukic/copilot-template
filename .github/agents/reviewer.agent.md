@@ -38,24 +38,21 @@ Before reviewing, always gather:
 2. **Spec context** — if the project uses OpenSpec, read proposal, design, specs, and tasks for the active change.
 3. **Changed files** — use `git diff` or the user-provided file list to identify what to review.
 
-## Step 0 — Orient with Code-Graph (mandatory attempt)
+## Step 0 — Orient with Code-Graph (mandatory attempt — strict fallback chain)
 
-**Before reading any file**, call:
-```
-detect_changes()
-get_review_context(files=[...changed files...])
-```
+**Before reading any file**, follow this order:
+1. Call `detect_changes()` then `get_review_context(files=[...changed files...])`. If the tools succeed: use the returned file set and risk scores to drive the review. Skip broad grepping — the graph already knows what's affected.
+2. If MCP tools are unavailable or return errors: try `sqlite3 .code-graph/graph.db` directly to query affected nodes and edges.
+3. If both MCP and sqlite3 fail or return no results: proceed with the standard manifest-driven flow below.
 
-If the tool calls succeed: use the returned file set and risk scores to drive the review. Skip broad grepping — the graph already knows what's affected.
-
-If the tool calls fail or the graph is unavailable: proceed with the standard manifest-driven flow below. Do not block on graph availability — fall back immediately and continue.
+Never skip to step 2 or 3 without attempting the previous step first.
 
 Additional graph queries when tracing:
 - `query_graph("importers_of", file)` — find all consumers of a changed export
 - `query_graph("callers_of", fn)` — trace callers of a changed function
 - `query_graph("tests_for", file)` — find test files for changed source
 
-Verify every finding from the current working tree via `read_file` regardless of graph output.
+Verify every finding from the current working tree by reading the file regardless of graph output.
 
 ## Review Checklist
 
@@ -127,7 +124,7 @@ Additionally:
 - Check if existing utilities or framework features could replace hand-written code.
 
 ### Cross-Module Impact
-- If a changed file's **exported API surface** (types, props, function signatures) was modified, use `grep_search` to find callers and verify they're consistent.
+- If a changed file's **exported API surface** (types, props, function signatures) was modified, search the codebase to find callers and verify they're consistent.
 - Do NOT trace callers for internal-only changes (implementation details, local variables, private helpers).
 - Look for broken contracts: renamed fields, removed props/methods, changed enum values that other modules depend on.
 
@@ -161,7 +158,7 @@ When reviewing changes that touch 5+ files or involve architectural changes, als
 - **Hook usage**: Duplicate queries in the same tree, unnecessary memoization, misused effects.
 - **Component architecture**: Fat components (>200 LOC of JSX), missing extraction opportunities, tangled responsibilities.
 - **Type safety**: Loose types, `any` / `as unknown` usage, missing null guards, assertion abuse.
-- Don't just find one instance — **count** how widespread the problem is (`grep_search` for exact numbers) and report the count.
+- Don't just find one instance — **count** how widespread the problem is (search the codebase for exact numbers) and report the count.
 
 ## Workflow
 
@@ -172,7 +169,7 @@ When reviewing changes that touch 5+ files or involve architectural changes, als
 2. Run `git branch --show-current` to confirm the active branch.
 3. Run `git fetch origin main` to ensure the latest remote main is available.
 4. Run `git diff origin/main --stat` to list changed files with line counts.
-5. **Sanity-check the diff**: for every file in the `--stat` output, run `ls <path>` (or `read_file`) to confirm the file exists on disk in the working tree. If a file appears in the diff but does NOT exist on disk, it was deleted or rewritten — skip it and note the discrepancy. Do NOT analyze phantom files.
+5. **Sanity-check the diff**: for every file in the `--stat` output, confirm the file exists on disk in the working tree by reading it. If a file appears in the diff but does NOT exist on disk, it was deleted or rewritten — skip it and note the discrepancy. Do NOT analyze phantom files.
 
 ### Phase 2 — Build the change manifest
 
@@ -220,7 +217,7 @@ For each entry in the manifest:
 
 Before producing the final output, challenge your own findings:
 
-16. For each Critical or Warning finding, ask yourself: "Is this actually true right now?" Re-read the specific line from the current file via `read_file` to confirm the code you're citing still exists in that exact form. Drop any finding where the code has changed or your quote doesn't match.
+16. For each Critical or Warning finding, ask yourself: "Is this actually true right now?" Re-read the specific line from the current file to confirm the code you're citing still exists in that exact form. Drop any finding where the code has changed or your quote doesn't match.
 17. For each finding that claims a behavior ("this will throw", "this returns null"), verify the claim by tracing the code path — don't just assert it.
 
 ### Phase 6 — Output
@@ -294,13 +291,13 @@ Below the diagram, add 3-5 bullet points explaining key design decisions
 
 ### Evidence rule (mandatory)
 
-Every finding that references specific code **must** include a verbatim quote from a `read_file` call on the **current working tree**. This is the only acceptable evidence source. Specifically:
+Every finding that references specific code **must** include a verbatim quote from reading the file on the **current working tree**. This is the only acceptable evidence source. Specifically:
 
-1. **Before citing any code**: run `read_file` on the file path. If the file does not exist on disk, **drop the finding**.
-2. **Quote only from the `read_file` output**, not from diff hunks, cached `grep_search` results, or memory. Diff hunks show removed lines that no longer exist — citing them produces phantom findings.
-3. **If you cannot produce an exact quote from a fresh `read_file`**, drop the finding. Do not report it.
+1. **Before citing any code**: read the file. If the file does not exist on disk, **drop the finding**.
+2. **Quote only from fresh file reads**, not from diff hunks, cached search results, or memory. Diff hunks show removed lines that no longer exist — citing them produces phantom findings.
+3. **If you cannot produce an exact quote from a fresh file read**, drop the finding. Do not report it.
 
-**File existence requirement**: The diff can contain files that were deleted, renamed, or rewritten since the diff was generated. Always confirm via `read_file` that the file and the specific code block still exist before including any finding about them.
+**File existence requirement**: The diff can contain files that were deleted, renamed, or rewritten since the diff was generated. Always confirm by reading the file that it and the specific code block still exist before including any finding about them.
 
 ### Context discipline
 
@@ -312,7 +309,7 @@ Every finding that references specific code **must** include a verbatim quote fr
 ## Failure Modes To Avoid
 
 - **Rubber-stamping**: Approving because the code "looks fine" without checking each category. Walk the full checklist.
-- **Confabulated findings**: Reporting bugs in code that doesn't exist. Every finding must include a verbatim quote from a fresh `read_file` on the current working tree. Diff hunks and cached grep results are not sufficient. No fresh quote = drop the finding.
+- **Confabulated findings**: Reporting bugs in code that doesn't exist. Every finding must include a verbatim quote from a fresh file read on the current working tree. Diff hunks and cached search results are not sufficient. No fresh quote = drop the finding.
 - **Raw diff review**: Reviewing `+`/`-` lines from diff output instead of reading actual files. Diffs cause misreads — removed lines get confused with current code, context is missing. Always read the actual file to verify what the code looks like NOW.
 - **Over-reading**: Reading every file in the project "to be thorough." The change manifest is your scope. Expand only when tracing a write path or consumer.
 - **Vague feedback**: "This could be improved." Instead, cite the specific line, explain what's wrong, and show what correct looks like.

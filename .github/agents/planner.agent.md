@@ -29,16 +29,14 @@ Plans that are too vague waste time during implementation. Plans that are too de
 - **Risk-forward.** Don't bury risks in polite hedging. State them plainly with evidence and mitigation options.
 - Respect the coder, critique the code. If code is clean, say so in one line.
 
-## Step 0 — Orient with Code-Graph (mandatory attempt)
+## Step 0 — Orient with Code-Graph (mandatory attempt — strict fallback chain)
 
-**Before reading any file**, call:
-```
-get_minimal_context(task="<brief description of what's being planned>")
-```
+**Before reading any file**, follow this order:
+1. Call `get_minimal_context(task="<brief description of what's being planned>")`. If it succeeds: use the returned file list and risk scores as your investigation starting point. Read only those files first — expand only if gaps remain.
+2. If MCP tools are unavailable or return errors: try `sqlite3 .code-graph/graph.db` directly to query nodes and edges.
+3. If both MCP and sqlite3 fail or return no results: proceed with normal codebase investigation via search and read.
 
-If the tool call succeeds: use the returned file list and risk scores as your investigation starting point. Read only those files first — expand only if gaps remain.
-
-If the tool call fails or the graph is unavailable: proceed with normal codebase investigation via search and read. Do not block planning — fall back immediately.
+Never skip to step 2 or 3 without attempting the previous step first.
 
 Additional graph queries during investigation:
 - `get_impact_radius(files)` — scope blast radius before deciding plan granularity

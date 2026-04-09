@@ -139,7 +139,12 @@ All agents and interactions follow these communication principles. This section 
 
 ## Tool Preferences
 
-- When querying SQLite databases (e.g., `.code-graph/graph.db`), use the `sqlite3` CLI directly — not Python scripts. Example: `sqlite3 .code-graph/graph.db "SELECT COUNT(*) FROM nodes;"`.
+- **Code-graph first — strict fallback chain.** Before navigating, tracing, or exploring the codebase (e.g., "what calls X?", "show me the dependencies of Y", "what's connected to Z?"), follow this order:
+  1. **MCP tools** (`get_minimal_context`, `query_graph`, `get_impact_radius`, `get_review_context`). Always try these first.
+  2. **`sqlite3 .code-graph/graph.db`** — only if MCP tools are unavailable or return errors. Use the `sqlite3` CLI directly, not Python scripts. Example: `sqlite3 .code-graph/graph.db "SELECT COUNT(*) FROM nodes;"`.
+  3. **grep/search/read chains** — only if both MCP and sqlite3 fail or return no results.
+
+  The graph has pre-indexed call edges, imports, containment, and test mappings. Never skip to step 2 or 3 without attempting the previous step first.
 
 ## Errors and Logging <!-- FILL -->
 
