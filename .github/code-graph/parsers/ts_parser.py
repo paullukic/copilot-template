@@ -100,6 +100,49 @@ else:
                 yield node
                 stack.extend(reversed(node.children))
 
+        # Python builtins — skip these in call extraction to reduce noise
+        _BUILTINS_PY = frozenset({
+            'print', 'len', 'range', 'str', 'int', 'float', 'bool', 'list',
+            'dict', 'set', 'tuple', 'type', 'isinstance', 'hasattr', 'getattr',
+            'setattr', 'super', 'enumerate', 'zip', 'map', 'filter', 'sorted',
+            'reversed', 'open', 'repr', 'format', 'any', 'all', 'min', 'max',
+            'sum', 'abs', 'vars', 'dir', 'id', 'hash', 'iter', 'next',
+            'callable', 'staticmethod', 'classmethod', 'property', 'object',
+        })
+
+        def _calls_python(fn_node, src: bytes, fn_types: frozenset) -> set[str]:
+            """Extract callee names from a Python function node.
+
+            Does not descend into nested function/class definitions.
+            Only resolves simple names and self.method() calls.
+            """
+            calls: set[str] = set()
+
+            def _visit(node):
+                for child in node.children:
+                    if child.type in fn_types or child.type == 'class_definition':
+                        continue  # stop at nested scopes
+                    if child.type == 'call':
+                        fn_child = child.child_by_field_name('function')
+                        if fn_child:
+                            if fn_child.type == 'identifier':
+                                name = _txt(fn_child, src)
+                                if (name
+                                        and not (name.startswith('__') and name.endswith('__'))
+                                        and name not in _BUILTINS_PY):
+                                    calls.add(name)
+                            elif fn_child.type == 'attribute':
+                                obj = fn_child.child_by_field_name('object')
+                                attr = fn_child.child_by_field_name('attribute')
+                                if obj and attr and _txt(obj, src) == 'self':
+                                    name = _txt(attr, src)
+                                    if name and not (name.startswith('__') and name.endswith('__')):
+                                        calls.add(name)
+                    _visit(child)
+
+            _visit(fn_node)
+            return calls
+
         # -------------------------------------------------------------------
         # Import extractors (per language)
         # -------------------------------------------------------------------
@@ -430,6 +473,29 @@ else:
                 nodes.append((fn_nid, "function", name, rel,
                               node.start_point[0] + 1, node.end_point[0] + 1))
                 edges.append((fid, fn_nid, 'contains'))
+
+            # ---- Pass 3: calls (Python only) ----
+            if ext == '.py':
+                for fn_node in _walk(root):
+                    if fn_node.type not in fn_types:
+                        continue
+                    name_node = fn_node.child_by_field_name('name')
+                    if not name_node:
+                        continue
+                    fn_name = _txt(name_node, src)
+                    if not fn_name or len(fn_name) < 2:
+                        continue
+                    cls_anc = _ancestor(fn_node, class_types)
+                    if cls_anc:
+                        cls_name_node = cls_anc.child_by_field_name('name')
+                        cls_name = _txt(cls_name_node, src) if cls_name_node else None
+                        if not cls_name:
+                            continue
+                        fn_nid = nid("method", rel, f"{cls_name}.{fn_name}")
+                    else:
+                        fn_nid = nid("function", rel, f"{fn_name}_{fn_node.start_point[0]+1}")
+                    for callee in _calls_python(fn_node, src, fn_types):
+                        edges.append((fn_nid, callee, 'calls'))
 
             # ---- Imports ----
             cfg['import_fn'](root, src, fid, edges)

@@ -10,6 +10,15 @@ from . import register, nid
 STACK = "python"
 EXTENSIONS = frozenset({".py"})
 
+_BUILTINS = frozenset({
+    'print', 'len', 'range', 'str', 'int', 'float', 'bool', 'list', 'dict',
+    'set', 'tuple', 'type', 'isinstance', 'hasattr', 'getattr', 'setattr',
+    'super', 'enumerate', 'zip', 'map', 'filter', 'sorted', 'reversed',
+    'open', 'repr', 'format', 'any', 'all', 'min', 'max', 'sum', 'abs',
+    'vars', 'dir', 'id', 'hash', 'iter', 'next', 'callable',
+    'staticmethod', 'classmethod', 'property',
+})
+
 
 @register(STACK, EXTENSIONS)
 def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
@@ -59,11 +68,47 @@ def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
                 func_nid = nid("function", rel, node.name)
                 nodes.append((func_nid, "function", node.name, rel, node.lineno, node.end_lineno))
                 edges.append((fid, func_nid, "contains"))
+            # Extract calls within this function body (stop at nested defs)
+            call_names: set[str] = set()
+            for stmt in node.body:
+                _collect_calls(stmt, call_names)
+            for callee in call_names:
+                edges.append((func_nid, callee, "calls"))
             self.generic_visit(node)
 
         visit_AsyncFunctionDef = visit_FunctionDef
 
     _V().visit(tree)
+
+
+def _resolve_call(node: ast.expr) -> str | None:
+    """Extract callee name from a Call's func node (simple names and self.method only)."""
+    if isinstance(node, ast.Name):
+        name = node.id
+        if name.startswith("__") and name.endswith("__"):
+            return None
+        if name in _BUILTINS:
+            return None
+        return name
+    if isinstance(node, ast.Attribute):
+        if isinstance(node.value, ast.Name) and node.value.id == "self":
+            attr = node.attr
+            if attr.startswith("__") and attr.endswith("__"):
+                return None
+            return attr
+    return None
+
+
+def _collect_calls(node: ast.AST, out: set[str]) -> None:
+    """Recursively collect call names, stopping at nested function/class boundaries."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return
+    if isinstance(node, ast.Call):
+        callee = _resolve_call(node.func)
+        if callee:
+            out.add(callee)
+    for child in ast.iter_child_nodes(node):
+        _collect_calls(child, out)
 
 
 def _resolve_name(node: ast.expr) -> str | None:
