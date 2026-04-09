@@ -182,6 +182,9 @@ flowchart TD
     BUILD --> QUERY
 ```
 
+<img width="1789" height="1098" alt="image" src="https://github.com/user-attachments/assets/38ba38fb-000f-460e-ad7d-63c7b1228a87" />
+
+
 ### Keeping the graph current
 
 The graph stores a SHA-1 hash for every parsed file. `--update` reads only files whose hash has changed — a 200-file project re-parses in milliseconds instead of seconds.
