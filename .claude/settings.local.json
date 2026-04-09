@@ -34,7 +34,19 @@
       "Bash(mkdir -p //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/openspec/changes/archive)",
       "Bash(touch //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/openspec/changes/.gitkeep //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/openspec/changes/archive/.gitkeep)",
       "Bash(mkdir -p /home/paul/cybergrid/copilot-template/openspec/changes/archive)",
-      "Bash(touch /home/paul/cybergrid/copilot-template/openspec/changes/.gitkeep /home/paul/cybergrid/copilot-template/openspec/changes/archive/.gitkeep)"
+      "Bash(touch /home/paul/cybergrid/copilot-template/openspec/changes/.gitkeep /home/paul/cybergrid/copilot-template/openspec/changes/archive/.gitkeep)",
+      "Bash(wsl:*)",
+      "Bash(\"C:\\\\Users\\\\paull\\\\AppData\\\\Local\\\\Python\\\\bin\\\\python.exe\" -m pip install tree-sitter-ruby --quiet)",
+      "Bash('C:\\\\Users\\\\paull\\\\AppData\\\\Local\\\\Python\\\\bin\\\\python.exe' -c ':*)",
+      "Bash(C:\\\\Users\\\\paull\\\\AppData\\\\Local\\\\Python\\\\bin\\\\python.exe:*)",
+      "Read(///wsl.localhost/Ubuntu/home/paul/**)",
+      "Bash(python3 .github/code-graph/server.py --build)",
+      "Bash(rsync:*)",
+      "Bash(cp -r //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/builder.py //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/server.py //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/visualize.py //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/requirements.txt //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/post-commit //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/post-merge //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/post-rewrite //wsl.localhost/Ubuntu/home/paul/cybergrid/.github/code-graph/)",
+      "Bash(cp -r //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/parsers/ //wsl.localhost/Ubuntu/home/paul/cybergrid/.github/code-graph/parsers/)",
+      "Bash(uv --version)",
+      "Read(//c/Users/paull/AppData/Local/Python/bin//**)",
+      "Read(//c/Users/paull/AppData/Local/Programs/**)"
     ]
   },
   "enableAllProjectMcpServers": true,

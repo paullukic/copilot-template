@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import register, nid
+from . import register, nid, find_scope, brace_end
 
 STACK = "rust"
 EXTENSIONS = frozenset({".rs"})
@@ -64,18 +64,23 @@ def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
         nodes.append((tid, "interface", name, rel, line, None))
         edges.append((fid, tid, "contains"))
 
-    # impl Trait for Struct → implements edge
+    # impl blocks — implements edges + scope list for method attribution
+    impl_scopes = []  # (struct_nid, open_brace_pos, close_brace_pos)
     for m in _IMPL_RE.finditer(text):
         trait_name, struct_name = m.group(1), m.group(2)
+        struct_nid = nid("class", rel, struct_name)
         if trait_name and struct_name:
-            # Find struct node and add implements edge
-            struct_nid = nid("class", rel, struct_name)
             edges.append((struct_nid, trait_name, "implements"))
+        open_pos = text.find('{', m.end())
+        if open_pos != -1:
+            impl_scopes.append((struct_nid, open_pos, brace_end(text, open_pos)))
 
     for m in _FN_RE.finditer(text):
         fname = m.group(1)
         if fname and len(fname) > 1:
             line = text[:m.start()].count('\n') + 1
-            func_id = nid("function", rel, f"{fname}_{line}")
-            nodes.append((func_id, "function", fname, rel, line, None))
-            edges.append((fid, func_id, "contains"))
+            owner = find_scope(m.start(), impl_scopes)
+            kind = "method" if owner else "function"
+            func_id = nid(kind, rel, f"{fname}_{line}")
+            nodes.append((func_id, kind, fname, rel, line, None))
+            edges.append((owner or fid, func_id, "contains"))

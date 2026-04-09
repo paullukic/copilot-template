@@ -21,6 +21,16 @@ The initializer detects your stack, copies files, fills all placeholders, and op
 
 See [SETUP.md](SETUP.md) for step-by-step instructions.
 
+### Visualizer
+
+```bash
+# From the template (or your project after copying code-graph)
+cd .github/code-graph && npm install
+python .github/code-graph/server.py --build   # build graph first if not done
+python .github/code-graph/server.py --visualize
+# Open .code-graph/graph.html in your browser
+```
+
 ### Prerequisites
 
 | Dependency | Required for | Install |
@@ -123,6 +133,8 @@ Completed changes move to `openspec/changes/archive/`.
 
 ## Code Graph
 
+> Full technical reference: [.github/code-graph/README.md](.github/code-graph/README.md)
+
 The code-graph is a standalone Python MCP server that parses your entire codebase into a SQLite dependency graph. Agents query it before reading any files — replacing broad searches with targeted lookups.
 
 ### Visualize your codebase
@@ -215,65 +227,7 @@ flowchart LR
     WITHOUT ~~~ WITH
 ```
 
-### Available tools
-
-| Tool | What it does | Example use |
-|------|-------------|-------------|
-| `get_minimal_context(task)` | Returns relevant files + risk for a task | Start of any planning or debugging session |
-| `query_graph(relation, name)` | Trace a specific dependency | `callers_of`, `importers_of`, `tests_for`, `callees_of` |
-| `get_impact_radius(files)` | Blast-radius analysis before editing | Before touching a shared service |
-| `detect_changes(base)` | Changed files with risk scores vs a git ref | At start of review — find what changed |
-| `get_review_context(files)` | Focused file set + related tests for review | Drives the reviewer's manifest |
-| `find_large_functions(min)` | Functions exceeding a line threshold | Finding complexity hotspots |
-| `graph_stats()` | Node/edge counts, stacks, top-connected files | Codebase overview |
-| `build_graph()` | Full rebuild | After major refactors |
-| `update_graph()` | Incremental update (changed files only) | Routine use — much faster |
-| `visualize_graph()` | Generate HTML dependency visualization | Architecture documentation |
-
-### Supported stacks
-
-Python · React/Next.js · Angular · Vue · Svelte · Java/Kotlin/Scala · C#/F# (.NET) · Go · Rust · PHP/Laravel · Ruby/Rails · Swift · Dart/Flutter · CSS/SCSS/LESS
-
-Stack detection is automatic — reads `pom.xml`, `package.json`, `go.mod`, `Cargo.toml`, etc.
-
-### Graph schema
-
-```
-nodes       — id, kind (file|class|function|method), name, file, start_line, end_line
-edges       — src, dst, kind (imports|calls|contains|tests_for)
-meta        — key, value (root, stacks, files_parsed)
-file_hashes — file, sha1  (for incremental updates)
-```
-
-### MCP setup
-
-```json
-// Claude Code — .mcp.json at repo root
-{
-  "mcpServers": {
-    "code-graph": {
-      "type": "stdio",
-      "command": "uv",
-      "args": ["run", "--with", "mcp>=1.0.0", ".github/code-graph/server.py"]
-    }
-  }
-}
-```
-
-```json
-// VS Code Copilot — .vscode/mcp.json
-{
-  "servers": {
-    "code-graph": {
-      "type": "stdio",
-      "command": "uv",
-      "args": ["run", "--with", "mcp>=1.0.0", "${workspaceFolder}/.github/code-graph/server.py"]
-    }
-  }
-}
-```
-
-The `initialize-project` skill handles all of this automatically. **Agents gracefully degrade** when the graph is unavailable — all agents fall back to search/read automatically.
+**Agents gracefully degrade** when the graph is unavailable — all agents fall back to search/read automatically. MCP config, full tool reference, and supported stacks are in [.github/code-graph/README.md](.github/code-graph/README.md).
 
 ---
 

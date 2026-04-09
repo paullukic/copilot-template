@@ -92,6 +92,15 @@ def get_parsers(stacks: set[str]) -> dict[str, ParseFn]:
             for ext in entry["extensions"]:
                 ext_map.setdefault(ext, entry["parse"])
 
+    # Tree-sitter overrides all regex parsers for any extension it supports.
+    # Runs unconditionally — ts_parser only registers extensions whose
+    # language packages are actually installed, so uninstalled languages
+    # keep their regex parser in ext_map.
+    if "tree_sitter" in _REGISTRY:
+        ts_entry = _REGISTRY["tree_sitter"]
+        for ext in ts_entry["extensions"]:
+            ext_map[ext] = ts_entry["parse"]
+
     return ext_map
 
 
@@ -257,6 +266,34 @@ def _detect_by_extensions(root: Path) -> set[str]:
 def nid(kind: str, file: str, name: str) -> str:
     """Generate a stable node ID."""
     return hashlib.sha1(f"{kind}\x00{file}\x00{name}".encode()).hexdigest()[:16]
+
+
+def find_scope(pos: int, scopes: list) -> str | None:
+    """Return the nid of the innermost scope (class/struct/impl block) that
+    contains text byte-position *pos*, or None if *pos* is outside all scopes.
+
+    *scopes*: list of ``(node_id, open_brace_pos, close_brace_pos)`` tuples
+    built by each parser while scanning class/struct/impl declarations.
+    """
+    owner_nid, owner_start = None, -1
+    for c_nid, start, end in scopes:
+        if start < pos < end and start > owner_start:
+            owner_nid, owner_start = c_nid, start
+    return owner_nid
+
+
+def brace_end(text: str, open_pos: int) -> int:
+    """Given the position of an opening ``{``, return the position just after
+    the matching closing ``}``.  Returns ``open_pos + 1`` on malformed input.
+    """
+    depth, pos = 1, open_pos + 1
+    while pos < len(text) and depth > 0:
+        if text[pos] == '{':
+            depth += 1
+        elif text[pos] == '}':
+            depth -= 1
+        pos += 1
+    return pos
 
 
 def is_test(rel: str) -> bool:

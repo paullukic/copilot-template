@@ -132,11 +132,12 @@ Run this step only if the user selected `yes` in Step 1 question 5.
 
 Copy `.github/code-graph/` from the copilot-template to the target project.
 This includes:
-- `builder.py` — parses source files into SQLite (zero external deps, pure stdlib)
-- `server.py`  — MCP server exposing 6 tools to the AI assistant
+- `builder.py` — parses source files into SQLite
+- `server.py`  — MCP server exposing tools to the AI assistant
 - `visualize.py` — generates standalone HTML graph visualization
+- `parsers/` — per-language parser modules (regex + tree-sitter)
 - `package.json` — d3 dependency for visualization
-- `requirements.txt` — only `mcp>=1.0.0`
+- `requirements.txt` — `mcp>=1.0.0` plus optional tree-sitter language packages
 - `post-commit` / `post-merge` / `post-rewrite` — optional git hooks for automatic graph updates
 
 Do NOT copy `node_modules/` — it will be installed in the next step.
@@ -193,7 +194,7 @@ By this point `uv` should be installed (step 6c). If step 6c fell back to pip, u
     "code-graph": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--with", "mcp>=1.0.0", "${workspaceFolder}/.github/code-graph/server.py"]
+      "args": ["run", "--with-requirements", "${workspaceFolder}/.github/code-graph/requirements.txt", "${workspaceFolder}/.github/code-graph/server.py"]
     }
   }
 }
@@ -206,7 +207,7 @@ By this point `uv` should be installed (step 6c). If step 6c fell back to pip, u
     "code-graph": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--with", "mcp>=1.0.0", ".github/code-graph/server.py"]
+      "args": ["run", "--with-requirements", ".github/code-graph/requirements.txt", ".github/code-graph/server.py"]
     }
   }
 }
@@ -219,7 +220,7 @@ By this point `uv` should be installed (step 6c). If step 6c fell back to pip, u
     "code-graph": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--with", "mcp>=1.0.0", ".github/code-graph/server.py"]
+      "args": ["run", "--with-requirements", ".github/code-graph/requirements.txt", ".github/code-graph/server.py"]
     }
   }
 }
@@ -230,7 +231,7 @@ Do NOT overwrite existing MCP configs — merge `code-graph` key into the `serve
 
 ### 6f. Build the initial graph
 
-The `--build` flag does NOT require the `mcp` package — it only uses stdlib + builder.py.
+The `--build` flag does NOT require the `mcp` package. Tree-sitter packages (installed via `requirements.txt`) are used automatically where available and fall back to regex parsers otherwise.
 Run in the target project root:
 ```bash
 python .github/code-graph/server.py --build
@@ -307,18 +308,24 @@ touch "$HOME/.config/git/ignore"
 
 ## Step 7: Agent references (when code-graph is enabled)
 
-The copied agent files already include "Optional Graph Context" sections.
-Verify they are present in the target project by checking `reviewer.agent.md` for the text `Optional Graph Context`.
-If missing (e.g. the user had older agent files and chose Skip), add the following block to the top of the Inputs section of each agent file:
+The copied agent files already include a mandatory "Step 0 — Orient with Code-Graph" section.
+Verify it is present in the target project by checking `reviewer.agent.md` for the text `Step 0 — Orient with Code-Graph`.
+If missing (e.g. the user had older agent files and chose Skip), add the following block near the top of each agent file, before the main workflow steps:
 
 ```
-## Optional Graph Context
+## Step 0 — Orient with Code-Graph (mandatory attempt)
 
-If code-graph MCP tools are available (server.py running):
-- Call get_review_context / get_impact_radius first to get a focused file set.
-- Use graph output to prioritize reads; verify every finding from the current file on disk.
+**Before reading any file**, call:
+```
+detect_changes()
+get_review_context(files=[...changed files...])
+```
 
-If graph tools are unavailable: continue with normal file search/read flow.
+If the tool calls succeed: use the returned file set and risk scores to drive the review. Skip broad grepping — the graph already knows what's affected.
+
+If the tool calls fail or the graph is unavailable: proceed with the standard manifest-driven flow below. Do not block on graph availability — fall back immediately and continue.
+
+Verify every finding from the current working tree via `read_file` regardless of graph output.
 ```
 
 ## Guardrails

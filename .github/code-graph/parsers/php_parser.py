@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import register, nid
+from . import register, nid, find_scope, brace_end
 
 STACK = "php"
 EXTENSIONS = frozenset({".php"})
@@ -58,7 +58,8 @@ def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
     for m in _REQUIRE_RE.finditer(text):
         edges.append((fid, m.group(1), "imports"))
 
-    # Classes / interfaces / traits / enums
+    # Classes / interfaces / traits / enums — build scope list
+    scopes = []
     for m in _CLASS_RE.finditer(text):
         decl_type, name = m.group(1), m.group(2)
         extends, implements = m.group(3), m.group(4)
@@ -85,14 +86,20 @@ def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
                 if iface:
                     edges.append((node_id, iface, "implements"))
 
+        open_pos = text.find('{', m.end())
+        if open_pos != -1:
+            scopes.append((node_id, open_pos, brace_end(text, open_pos)))
+
     # Functions / methods
     for m in _FUNC_RE.finditer(text):
         fname = m.group(1)
         if fname and fname != "__construct" and len(fname) > 1:
             line = text[:m.start()].count('\n') + 1
-            func_id = nid("function", rel, f"{fname}_{line}")
-            nodes.append((func_id, "function", fname, rel, line, None))
-            edges.append((fid, func_id, "contains"))
+            owner = find_scope(m.start(), scopes)
+            kind = "method" if owner else "function"
+            func_id = nid(kind, rel, f"{fname}_{line}")
+            nodes.append((func_id, kind, fname, rel, line, None))
+            edges.append((owner or fid, func_id, "contains"))
 
     # Laravel routes as endpoints
     for m in _ROUTE_RE.finditer(text):

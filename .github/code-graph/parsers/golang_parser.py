@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import register, nid
+from . import register, nid, find_scope, brace_end
 
 STACK = "golang"
 EXTENSIONS = frozenset({".go"})
@@ -62,7 +62,13 @@ def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
         fname = m.group(3)
         if fname and len(fname) > 1:
             line = text[:m.start()].count('\n') + 1
-            kind = "method" if receiver_type else "function"
-            func_id = nid(kind, rel, f"{fname}_{line}")
-            nodes.append((func_id, kind, fname, rel, line, None))
-            edges.append((fid, func_id, "contains"))
+            if receiver_type:
+                # Qualify name to avoid nid collisions between same-named methods
+                func_id = nid("method", rel, f"{receiver_type}.{fname}")
+                nodes.append((func_id, "method", fname, rel, line, None))
+                struct_id = nid("class", rel, receiver_type)
+                edges.append((struct_id, func_id, "contains"))
+            else:
+                func_id = nid("function", rel, fname)
+                nodes.append((func_id, "function", fname, rel, line, None))
+                edges.append((fid, func_id, "contains"))

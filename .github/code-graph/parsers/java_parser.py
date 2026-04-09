@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import register, nid
+from . import register, nid, find_scope, brace_end
 
 STACK = "java"
 EXTENSIONS = frozenset({".java", ".kt", ".scala"})
@@ -111,7 +111,8 @@ def _parse_java(path: Path, rel: str, nodes: list, edges: list) -> None:
     for m in re.finditer(r'^import\s+(?:static\s+)?([\w.]+(?:\.\*)?)\s*;', text, re.MULTILINE):
         edges.append((fid, m.group(1).strip(), "imports"))
 
-    # Classes / interfaces / enums
+    # Classes / interfaces / enums — build scope list for method attribution
+    scopes = []  # (node_id, open_brace_pos, close_brace_pos)
     for m in _JAVA_CLASS_RE.finditer(text):
         decl_type, name = m.group(1), m.group(2)
         extends_raw, implements_raw = m.group(3), m.group(4)
@@ -143,14 +144,26 @@ def _parse_java(path: Path, rel: str, nodes: list, edges: list) -> None:
                 if iface:
                     edges.append((node_id, iface, "implements"))
 
+        # Regex ends with \s*\{ so m.end()-1 is the opening brace
+        open_pos = m.end() - 1
+        scopes.append((node_id, open_pos, brace_end(text, open_pos)))
+
+    # Precompute line start offsets for position-based scope lookup
+    line_starts = [0]
+    for ln in text.splitlines():
+        line_starts.append(line_starts[-1] + len(ln) + 1)
+
     # Methods
     for lineno, line_text in enumerate(text.splitlines(), 1):
         for m in _JAVA_METHOD_RE.finditer(line_text):
             mname = m.group(1)
             if mname and len(mname) > 1 and mname not in _JAVA_KEYWORDS:
-                mid = nid("function", rel, f"{mname}_{lineno}")
-                nodes.append((mid, "function", mname, rel, lineno, None))
-                edges.append((fid, mid, "contains"))
+                pos = line_starts[lineno - 1] + m.start()
+                owner = find_scope(pos, scopes)
+                kind = "method" if owner else "function"
+                mid = nid(kind, rel, f"{mname}_{lineno}")
+                nodes.append((mid, kind, mname, rel, lineno, None))
+                edges.append((owner or fid, mid, "contains"))
 
     # Notable annotations
     annotations = set()
@@ -174,6 +187,7 @@ def _parse_kotlin(path: Path, rel: str, nodes: list, edges: list) -> None:
     for m in _KT_IMPORT_RE.finditer(text):
         edges.append((fid, m.group(1).strip(), "imports"))
 
+    scopes = []
     for m in _KT_CLASS_RE.finditer(text):
         decl_type, name = m.group(1).strip(), m.group(2)
         kind = "interface" if decl_type == "interface" else "class"
@@ -183,14 +197,19 @@ def _parse_kotlin(path: Path, rel: str, nodes: list, edges: list) -> None:
         node_id = nid(kind, rel, name)
         nodes.append((node_id, kind, name, rel, line, None))
         edges.append((fid, node_id, "contains"))
+        open_pos = text.find('{', m.end())
+        if open_pos != -1:
+            scopes.append((node_id, open_pos, brace_end(text, open_pos)))
 
     for m in _KT_FUN_RE.finditer(text):
         fname = m.group(1)
         if fname and len(fname) > 1:
             line = text[:m.start()].count('\n') + 1
-            func_id = nid("function", rel, f"{fname}_{line}")
-            nodes.append((func_id, "function", fname, rel, line, None))
-            edges.append((fid, func_id, "contains"))
+            owner = find_scope(m.start(), scopes)
+            kind = "method" if owner else "function"
+            func_id = nid(kind, rel, f"{fname}_{line}")
+            nodes.append((func_id, kind, fname, rel, line, None))
+            edges.append((owner or fid, func_id, "contains"))
 
 
 def _parse_scala(path: Path, rel: str, nodes: list, edges: list) -> None:
@@ -201,6 +220,7 @@ def _parse_scala(path: Path, rel: str, nodes: list, edges: list) -> None:
     for m in _SCALA_IMPORT_RE.finditer(text):
         edges.append((fid, m.group(1).strip(), "imports"))
 
+    scopes = []
     for m in _SCALA_CLASS_RE.finditer(text):
         decl_type, name = m.group(1), m.group(2)
         kind = "interface" if decl_type == "trait" else "class"
@@ -208,14 +228,19 @@ def _parse_scala(path: Path, rel: str, nodes: list, edges: list) -> None:
         node_id = nid(kind, rel, name)
         nodes.append((node_id, kind, name, rel, line, None))
         edges.append((fid, node_id, "contains"))
+        open_pos = text.find('{', m.end())
+        if open_pos != -1:
+            scopes.append((node_id, open_pos, brace_end(text, open_pos)))
 
     for m in _SCALA_DEF_RE.finditer(text):
         fname = m.group(1)
         if fname and len(fname) > 1:
             line = text[:m.start()].count('\n') + 1
-            func_id = nid("function", rel, f"{fname}_{line}")
-            nodes.append((func_id, "function", fname, rel, line, None))
-            edges.append((fid, func_id, "contains"))
+            owner = find_scope(m.start(), scopes)
+            kind = "method" if owner else "function"
+            func_id = nid(kind, rel, f"{fname}_{line}")
+            nodes.append((func_id, kind, fname, rel, line, None))
+            edges.append((owner or fid, func_id, "contains"))
 
 
 # ---------------------------------------------------------------------------

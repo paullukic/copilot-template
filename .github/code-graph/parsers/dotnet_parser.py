@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import register, nid
+from . import register, nid, find_scope, brace_end
 
 STACK = "dotnet"
 EXTENSIONS = frozenset({".cs", ".fs"})
@@ -126,7 +126,8 @@ def _parse_cs(path: Path, rel: str, nodes: list, edges: list) -> None:
     for m in _CS_USING_RE.finditer(text):
         edges.append((fid, m.group(1).strip(), "imports"))
 
-    # Classes / records / structs / interfaces / enums
+    # Classes / records / structs / interfaces / enums — build scope list
+    scopes = []
     for m in _CS_CLASS_RE.finditer(text):
         decl_type, name, bases_raw = m.group(1), m.group(2), m.group(3)
         line = text[:m.start()].count('\n') + 1
@@ -149,14 +150,20 @@ def _parse_cs(path: Path, rel: str, nodes: list, edges: list) -> None:
         for iface in ifaces:
             edges.append((node_id, iface, "implements"))
 
+        open_pos = text.find('{', m.end())
+        if open_pos != -1:
+            scopes.append((node_id, open_pos, brace_end(text, open_pos)))
+
     # Methods
     for m in _CS_METHOD_RE.finditer(text):
         mname = m.group(1)
         if mname and len(mname) > 1 and mname not in _CS_KEYWORDS:
             line = text[:m.start()].count('\n') + 1
-            mid = nid("function", rel, f"{mname}_{line}")
-            nodes.append((mid, "function", mname, rel, line, None))
-            edges.append((fid, mid, "contains"))
+            owner = find_scope(m.start(), scopes)
+            kind = "method" if owner else "function"
+            mid = nid(kind, rel, f"{mname}_{line}")
+            nodes.append((mid, kind, mname, rel, line, None))
+            edges.append((owner or fid, mid, "contains"))
 
     # Notable attributes
     attrs = set()

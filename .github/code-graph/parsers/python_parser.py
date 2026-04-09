@@ -22,7 +22,8 @@ def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
     fid = nid("file", rel, rel)
     nodes.append((fid, "file", rel, rel, None, None))
 
-    class_stack: list[str] = []
+    # Stack entries: (class_name, class_nid)
+    class_stack: list[tuple[str, str]] = []
 
     class _V(ast.NodeVisitor):
         def visit_Import(self, node: ast.Import) -> None:
@@ -39,20 +40,25 @@ def parse(path: Path, rel: str, nodes: list, edges: list) -> None:
             cid = nid("class", rel, node.name)
             nodes.append((cid, "class", node.name, rel, node.lineno, node.end_lineno))
             edges.append((fid, cid, "contains"))
-            # Inheritance
             for base in node.bases:
                 base_name = _resolve_name(base)
                 if base_name:
                     edges.append((cid, base_name, "inherits"))
-            class_stack.append(node.name)
+            class_stack.append((node.name, cid))
             self.generic_visit(node)
             class_stack.pop()
 
         def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-            kind = "method" if class_stack else "function"
-            func_nid = nid(kind, rel, node.name)
-            nodes.append((func_nid, kind, node.name, rel, node.lineno, node.end_lineno))
-            edges.append((fid, func_nid, "contains"))
+            if class_stack:
+                class_name, class_nid = class_stack[-1]
+                # Qualify name to avoid nid collisions between same-named methods
+                func_nid = nid("method", rel, f"{class_name}.{node.name}")
+                nodes.append((func_nid, "method", node.name, rel, node.lineno, node.end_lineno))
+                edges.append((class_nid, func_nid, "contains"))
+            else:
+                func_nid = nid("function", rel, node.name)
+                nodes.append((func_nid, "function", node.name, rel, node.lineno, node.end_lineno))
+                edges.append((fid, func_nid, "contains"))
             self.generic_visit(node)
 
         visit_AsyncFunctionDef = visit_FunctionDef

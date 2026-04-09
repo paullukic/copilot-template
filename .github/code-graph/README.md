@@ -6,9 +6,10 @@ Parses your repository into a SQLite graph (`.code-graph/graph.db`) that AI tool
 
 ## Requirements
 
-- **Python 3.10+** (stdlib only for building — no pip install needed)
-- **`mcp>=1.0.0`** (only for running the MCP server, not for building)
-- **`uv`** (recommended — auto-installs MCP dependency)
+- **Python 3.10+**
+- **`mcp>=1.0.0`** (MCP server only — not needed for `--build`/`--update`)
+- **`uv`** (recommended — auto-installs dependencies)
+- **`tree-sitter` + language packages** (optional but recommended — see `requirements.txt` for the full list; uninstalled languages fall back to regex parsers automatically)
 
 ## Quick Start
 
@@ -141,4 +142,5 @@ file_hashes: file, sha1 (for incremental updates)
 
 - `.code-graph/` is generated and should be in `.gitignore`.
 - `builder.py` is a library — use `server.py --build` as the CLI entry point, not `python builder.py` directly.
-- The `--build` and `--update` flags do **not** require the `mcp` package — they only use stdlib.
+- The `--build` and `--update` flags do **not** require the `mcp` package.
+- Tree-sitter language packages are optional — uninstalled languages fall back to regex parsers automatically. Install via `pip install -r requirements.txt` or `uv pip install -r requirements.txt`.
