@@ -123,6 +123,9 @@ def sync_project(project: dict) -> bool:
             shutil.copy2(mcp_src, path / ".mcp.json")
             log.info("  .mcp.json  1 file")
             total += 1
+    elif (path / ".github" / "code-graph").exists():
+        log.warning("  code_graph is false but %s has .github/code-graph/ "
+                     "- set code_graph: true in projects.json to sync updates", path)
 
     log.info("SYNC %s - %d files updated", path, total)
 
