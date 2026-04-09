@@ -36,7 +36,7 @@ The full procedure is in `.github/skills/initialize-project/SKILL.md`. Follow th
    - Build initial graph: `uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build`
    - Optionally install git hooks for auto-updates
 
-7. **Register in projects.json** — Add the target project to `projects.json` in the copilot-template root (create with `{"projects": []}` if missing). Entry: `{ "path": "<absolute-path>", "tools": [...], "code_graph": true|false, "registered_at": "<date>" }`. Then check if `.git/hooks/post-merge` is installed in copilot-template — if not, show the install command: `cp .github/hooks/post-merge .git/hooks/post-merge && chmod +x .git/hooks/post-merge`.
+7. **Register in projects.json** — Add the target project to `projects.json` in the copilot-template root (create with `{"projects": []}` if missing). Entry: `{ "path": "<absolute-path>", "tools": [...], "code_graph": true|false, "registered_at": "<date>" }`. Then run `./setup.sh` in the copilot-template root to ensure git hooks are configured for auto-sync on pull.
 
 ## Guardrails
 

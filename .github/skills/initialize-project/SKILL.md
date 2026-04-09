@@ -346,16 +346,11 @@ Register the target project so future `git pull` updates in copilot-template aut
    ```
    Set `tools` to match what was selected in Step 1, `code_graph` to match Step 1 question 5, and `registered_at` to today's date.
 3. Write the updated `projects.json` back.
-4. Check whether the post-merge hook is installed in copilot-template:
+4. Run `./setup.sh` in the copilot-template root to ensure git hooks are configured for auto-sync:
    ```bash
-   ls <copilot-template-path>/.git/hooks/post-merge
+   cd <copilot-template-path> && ./setup.sh
    ```
-   If missing, tell the user to install it once:
-   ```bash
-   cp <copilot-template-path>/.github/hooks/post-merge <copilot-template-path>/.git/hooks/post-merge
-   chmod +x <copilot-template-path>/.git/hooks/post-merge
-   ```
-   After installation, every `git pull` in copilot-template will automatically sync updated agents, skills, commands, and code-graph files to all registered projects — and rebuild their graphs if `code_graph: true`.
+   After setup, every `git pull` in copilot-template will automatically sync updated agents, skills, commands, code-graph files, and `.mcp.json` to all registered projects — and rebuild their graphs if `code_graph: true`.
 
 ## Guardrails
 
