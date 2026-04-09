@@ -1,10 +1,46 @@
-Initialize a new project with this copilot template. Interactive setup that detects the tech stack and fills in all placeholders.
+Initialize a new project with this copilot template. Interactive setup that auto-detects the tech stack and fills all placeholders.
 
-Follow the exact same steps as `.github/skills/initialize-project/SKILL.md` — read that file for the full procedure (Steps 1-5 and Guardrails).
+The full procedure is in `.github/skills/initialize-project/SKILL.md`. Follow those steps exactly, with these Claude Code-specific substitutions:
 
-Key differences for Claude Code context:
-- Use this template repo's path as the source for copying files.
-- Include this `initialize.md` command in the copy — the target project can use it to initialize other projects later.
-- For Claude Code tool selection, copy `CLAUDE.md` and `.claude/commands/project/` (all commands).
+| SKILL.md tool | Claude Code equivalent |
+|---------------|----------------------|
+| `vscode_askQuestions` | Ask the user directly in the conversation |
+| `manage_todo_list` | Use task tracking internally |
+| `apply_patch` / `create_file` | Use Edit / Write tools |
+| `read_file` | Use Read tool |
+| `grep_search` | Use Grep tool |
+
+## Steps (summary)
+
+1. **Gather info** — Ask the user: target project path, which AI tools to set up (Claude Code / VS Code Copilot / both), sections to skip, project-specific rules, whether to enable code-graph, and whether to add global gitignore entries.
+
+2. **Detect tech stack** — Read the target project's manifest files (package.json, pom.xml, go.mod, Cargo.toml, pyproject.toml, tsconfig.json, etc.) and `src/` structure. Extract language, framework, ORM, testing, build tool, linter, commands, and project structure. Present findings and ask the user to confirm before proceeding.
+
+3. **Copy template files** — Copy only what's relevant to the selected tools:
+   - Claude Code: `CLAUDE.md`, `.claude/commands/project/` (all except `initialize.md`)
+   - VS Code Copilot: `.github/copilot-instructions.md`, `.github/agents/`, `.github/skills/`, `.github/prompts/`, `.github/instructions/`, `AGENTS.md`
+   - Always: `openspec/config.yaml`
+   - Do NOT copy `node_modules/`, `.omc/`, or `settings.local.json`
+   - Ask before overwriting any existing file (overwrite / skip / section-by-section)
+
+4. **Fill placeholders** — Replace all `_TBD_` and `<!-- FILL: ... -->` markers using the detected stack info. Delete sections the user said to skip. Add project-specific rules.
+
+5. **Verify** — Grep for remaining `_TBD_` or `<!-- FILL` markers. Ask the user for any still missing. Zero markers = done.
+
+6. **Code-graph setup** (if enabled) — See SKILL.md § Step 6 for the full procedure:
+   - Copy `.github/code-graph/` (exclude `node_modules/`)
+   - Install d3: `cd .github/code-graph && npm install`
+   - Ensure `uv` is available (install automatically if not)
+   - Add `.code-graph/` to `.gitignore`
+   - Write MCP config(s) for selected tools
+   - Build initial graph: `python .github/code-graph/server.py --build`
+   - Optionally install git hooks for auto-updates
+
+## Guardrails
+
+- Never guess at commands — if you can't detect them, ask.
+- Never invent project structure — read the actual filesystem.
+- Initialization is complete only when there are zero `_TBD_` and `<!-- FILL` markers in copied instruction files.
+- If code-graph is enabled, initialization is complete only when `.code-graph/graph.db` exists and at least one MCP config has been written.
 
 $ARGUMENTS

@@ -9,7 +9,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
-__pycache__/
+**/__pycache__/
 
 # Environment
 .env
@@ -19,9 +19,12 @@ __pycache__/
 !.claude/
 !CLAUDE.md
 
+# Local AI tool state (machine-specific)
+.omc/
+
 # Generated artifacts (local only)
 .code-graph/
-node_modules/
+**/node_modules/
 
 # OpenSpec change archives (optional — uncomment to ignore)
 # openspec/changes/archive/

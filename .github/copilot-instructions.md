@@ -137,6 +137,10 @@ All agents and interactions follow these communication principles. This section 
 
 - All user-facing strings must go through the i18n mechanism.
 
+## Tool Preferences
+
+- When querying SQLite databases (e.g., `.code-graph/graph.db`), use the `sqlite3` CLI directly — not Python scripts. Example: `sqlite3 .code-graph/graph.db "SELECT COUNT(*) FROM nodes;"`.
+
 ## Errors and Logging <!-- FILL -->
 
 - Use the project's structured logger — no raw stdout/stderr printing (`System.out.println`, `console.log`, `print()`, etc.).

@@ -1,143 +1,79 @@
 ---
 name: openspec-archive-change
-description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.
+description: Archive a completed change. Use when implementation is done and the change is ready to be moved to the archive.
 argument-hint: Change name to archive. If omitted, will prompt for selection.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.2.0"
+  author: copilot-template
+  version: "2.0"
 ---
 
-Archive a completed change in the experimental workflow.
+Archive a completed OpenSpec change by moving it from `openspec/changes/` to `openspec/changes/archive/`.
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+---
 
-**Steps**
+## Step 1: Identify the change
 
-1. **If no change name provided, prompt for selection**
+If a name is provided, look for `openspec/changes/<name>/` or `openspec/changes/<date>-<name>/`.
 
-   Run `openspec list --json` to get available changes. Use the **vscode_askQuestions tool** to let the user select.
+If no name is provided:
+- List directories in `openspec/changes/` (excluding `archive/`)
+- Ask the user to select — do NOT auto-select
 
-   Show only active changes (not already archived).
-   Include the schema used for each change if available.
+## Step 2: Check task completion
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+Read `tasks.md` and count:
+- `- [x]` items (complete)
+- `- [ ]` items (incomplete)
 
-2. **Check artifact completion status**
+If incomplete tasks exist, warn the user:
+> "X tasks are still incomplete. Archive anyway?"
 
-   Run `openspec status --change "<name>" --json` to check artifact completion.
+Wait for confirmation before proceeding. Do not skip this check.
 
-   Parse the JSON to understand:
-   - `schemaName`: The workflow being used
-   - `artifacts`: List of artifacts with their status (`done` or other)
+## Step 3: Check for delta specs
 
-   **If any artifacts are not `done`:**
-   - Display warning listing incomplete artifacts
-   - Use **vscode_askQuestions tool** to confirm user wants to proceed
-   - Proceed if user confirms
+Look for `openspec/changes/<name>/specs/` — if it contains spec files, compare each against its counterpart in `openspec/specs/<capability>/spec.md`.
 
-3. **Check task completion status**
+If delta specs exist:
+- Show what would change (additions, modifications, removals)
+- Ask: "Sync these specs to the main spec files before archiving?"
+- If yes: merge each delta spec into its corresponding main spec file. Show what was merged.
+- If no: proceed without syncing (delta specs will be archived with the change)
 
-   Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
+If no delta specs exist: skip this step.
 
-   Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
+## Step 4: Archive
 
-   **If incomplete tasks found:**
-   - Display warning showing count of incomplete tasks
-   - Use **vscode_askQuestions tool** to confirm user wants to proceed
-   - Proceed if user confirms
+Create the archive directory if it doesn't exist:
+```bash
+mkdir -p openspec/changes/archive
+```
 
-   **If no tasks file exists:** Proceed without task-related warning.
+Generate the target name: `YYYY-MM-DD-<slug>` using today's date.
 
-4. **Assess delta spec sync state**
+Check if the target already exists — if so, fail with a clear error and ask the user how to proceed.
 
-   Check for delta specs at `openspec/changes/<name>/specs/`. If none exist, proceed without sync prompt.
+Move the change directory:
+```bash
+mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<slug>
+```
 
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at `openspec/specs/<capability>/spec.md`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
-
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
-
-   If user chooses sync, manually copy each delta spec's content into the corresponding main spec at `openspec/specs/<capability>/spec.md`. For each delta spec:
-   - Read the delta spec file
-   - Read the corresponding main spec (create it if it doesn't exist)
-   - Merge the delta spec changes into the main spec
-   - Show the user what was merged
-   
-   Proceed to archive regardless of sync choice.
-
-5. **Perform the archive**
-
-   Create the archive directory if it doesn't exist:
-   ```bash
-   mkdir -p openspec/changes/archive
-   ```
-
-   Generate target name using current date: `YYYY-MM-DD-<change-name>`
-
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move the change directory to archive
-
-   ```bash
-   mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
-   ```
-
-6. **Display summary**
-
-   Show archive completion summary including:
-   - Change name
-   - Schema that was used
-   - Archive location
-   - Whether specs were synced (if applicable)
-   - Note about any warnings (incomplete artifacts/tasks)
-
-**Output On Success**
+## Step 5: Report
 
 ```
 ## Archive Complete
 
-**Change:** <change-name>
-**Schema:** <schema-name>
-**Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
-
-All artifacts complete. All tasks complete.
+**Change:** <name>
+**Archived to:** openspec/changes/archive/YYYY-MM-DD-<slug>/
+**Specs:** [Synced to main specs / No delta specs / Sync skipped]
+**Tasks:** [All complete / X incomplete — user confirmed]
 ```
 
-**Guardrails**
-- Always prompt for change selection if not provided
-- Use artifact graph (openspec status --json) for completion checking
-- Don't block archive on warnings - just inform and confirm
-- Preserve .openspec.yaml when moving to archive (it moves with the directory)
-- Show clear summary of what happened
-- If sync is requested, manually merge delta specs into main specs
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting
+## Guardrails
 
-## Common Rationalizations
-
-These are excuses agents use to skip archive steps. Do not accept them.
-
-| Rationalization | Reality |
-|---|---|
-| "The tasks are mostly done, close enough to archive" | Incomplete tasks are lost context. Warn the user explicitly — they may want to finish or document why tasks were dropped. |
-| "Spec sync isn't important, just archive" | Delta specs that aren't synced are lost requirements. Always run the sync assessment and let the user decide. |
-| "I'll just move the directory without checking status" | Skipping status checks means archiving broken or incomplete work without the user knowing. Always run `openspec status` first. |
-| "The user seems to want this archived quickly, skip the prompts" | Archive is a one-way operation. Confirmation prompts exist to prevent data loss. Never skip them. |
-
-## Verification
-
-Before declaring archive complete, confirm:
-
-- [ ] `openspec status --change "<name>"` was run to check artifact/task completion.
-- [ ] User was warned about any incomplete artifacts or tasks.
-- [ ] Delta spec sync was assessed (if delta specs exist).
-- [ ] Archive target doesn't collide with existing archive entries.
-- [ ] The change directory was successfully moved to `archive/YYYY-MM-DD-<name>/`.
-- [ ] Summary shown to user includes schema, archive path, and sync status.
+- Never auto-select a change — always ask the user
+- Always check task completion and warn if incomplete — never silently skip
+- Always run the delta spec assessment if specs exist
+- If the archive target already exists, fail clearly — do not overwrite
+- Show a summary of what happened

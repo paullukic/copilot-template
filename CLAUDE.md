@@ -21,6 +21,8 @@ Follow the communication style defined in `.github/copilot-instructions.md` — 
 
 ## Branching Strategy
 
+<!-- FILL: e.g. "Feature branches off `main`. Branch naming: `feature/<ticket>-<slug>`, `fix/<ticket>-<slug>`." -->
+
 ## Key Paths
 
 - Source code: `src/`
@@ -35,6 +37,10 @@ Follow the communication style defined in `.github/copilot-instructions.md` — 
 - **Preserve all existing features** unless the ticket explicitly says to remove them. A feature absent from the ticket means "keep it." When in doubt, ask.
 - **Feature inventory before editing.** Before modifying a container or page, list all existing features (sections, hooks, conditional blocks, admin-only UI) and verify each is preserved in the final result.
 - **No new dependencies** without explicit user approval.
+
+## Tool Preferences
+
+- When querying SQLite databases (e.g., `.code-graph/graph.db`), use the `sqlite3` CLI directly — not Python scripts. Example: `sqlite3 .code-graph/graph.db "SELECT COUNT(*) FROM nodes;"`.
 
 ## Implementation Workflow (MANDATORY)
 

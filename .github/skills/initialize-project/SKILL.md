@@ -14,7 +14,7 @@ Initialize a new project with this copilot template. Auto-detect the tech stack 
 
 ## Step 1: Gather Info
 
-Ask the user these questions using the **vscode_askQuestions tool** (wait for answers before proceeding):
+Ask the user these questions one at a time (wait for each answer before proceeding):
 
 1. **Target project path** — "What is the full path to the project you want to initialize?" (If provided as argument, use that.)
 2. **Which AI tools should I set up for?**
@@ -250,7 +250,7 @@ Confirm `.code-graph/graph.db` exists. Report the file size and build time to th
 
 ### 6h. Install git hooks for automatic updates
 
-Ask the user a **Yes/No** question using `vscode_askQuestions`:
+Ask the user a **Yes/No** question:
 > **Install git hooks?** — "Auto-update the code graph on commit, merge, and rebase?"
 > Options: `Yes` (recommended), `No`
 

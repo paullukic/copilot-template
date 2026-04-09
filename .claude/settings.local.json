@@ -27,7 +27,14 @@
       "Bash(wsl find:*)",
       "Bash(git -C /c/paul/code/copilot-template log --oneline -- cybergrid)",
       "Bash(wsl ls:*)",
-      "Bash(wsl.exe -e ls /home/paul/cybergrid/)"
+      "Bash(wsl.exe -e ls /home/paul/cybergrid/)",
+      "Read(///wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/**)",
+      "Read(///wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/**)",
+      "Read(///wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/skills/**)",
+      "Bash(mkdir -p //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/openspec/changes/archive)",
+      "Bash(touch //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/openspec/changes/.gitkeep //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/openspec/changes/archive/.gitkeep)",
+      "Bash(mkdir -p /home/paul/cybergrid/copilot-template/openspec/changes/archive)",
+      "Bash(touch /home/paul/cybergrid/copilot-template/openspec/changes/.gitkeep /home/paul/cybergrid/copilot-template/openspec/changes/archive/.gitkeep)"
     ]
   },
   "enableAllProjectMcpServers": true,
