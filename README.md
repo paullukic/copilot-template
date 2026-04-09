@@ -247,6 +247,42 @@ All agents attempt the code-graph first (Phase 0) before reading any file. They 
 
 ---
 
+## Keeping Projects in Sync
+
+When you update copilot-template (new agent rules, parser improvements, bug fixes), registered projects update automatically.
+
+### How it works
+
+1. The initializer writes your project to `projects.json` in copilot-template.
+2. A post-merge hook in copilot-template runs after every `git pull`.
+3. The hook calls `sync.py`, which copies updated template files to every registered project and rebuilds their code-graphs.
+
+### Install the hook once
+
+```bash
+# Run in the copilot-template directory
+cp .github/hooks/post-merge .git/hooks/post-merge
+chmod +x .git/hooks/post-merge
+```
+
+After that, `git pull` in copilot-template is all you need. Sync output is appended to `.github/sync.log`.
+
+### What gets synced
+
+| Synced (pure template) | Skipped (user-customized) |
+|------------------------|--------------------------|
+| `.github/agents/` | `CLAUDE.md` |
+| `.github/skills/` | `.github/copilot-instructions.md` |
+| `.github/prompts/` | `openspec/config.yaml` |
+| `.github/instructions/` | |
+| `.github/code-graph/` | |
+| `.claude/commands/project/` | |
+| `AGENTS.md` | |
+
+Code-graph is rebuilt automatically for projects with `"code_graph": true` in `projects.json`.
+
+---
+
 ## Customization
 
 ### After initialization

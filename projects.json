@@ -1,0 +1,10 @@
+{
+  "projects": [
+    {
+      "path": "/home/paul/cybergrid",
+      "tools": ["claude", "vscode"],
+      "code_graph": true,
+      "registered_at": "2026-04-09"
+    }
+  ]
+}

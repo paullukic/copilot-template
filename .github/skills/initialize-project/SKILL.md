@@ -330,6 +330,33 @@ If the tool calls fail or the graph is unavailable: proceed with the standard ma
 Verify every finding from the current working tree via `read_file` regardless of graph output.
 ```
 
+## Step 8: Register in projects.json
+
+Register the target project so future `git pull` updates in copilot-template auto-propagate.
+
+1. Locate `projects.json` in the copilot-template root (create with `{"projects": []}` if missing).
+2. Check if the target project path is already in the list — if so, update it; if not, append:
+   ```json
+   {
+     "path": "<absolute-path-to-target-project>",
+     "tools": ["claude", "vscode"],
+     "code_graph": true,
+     "registered_at": "YYYY-MM-DD"
+   }
+   ```
+   Set `tools` to match what was selected in Step 1, `code_graph` to match Step 1 question 5, and `registered_at` to today's date.
+3. Write the updated `projects.json` back.
+4. Check whether the post-merge hook is installed in copilot-template:
+   ```bash
+   ls <copilot-template-path>/.git/hooks/post-merge
+   ```
+   If missing, tell the user to install it once:
+   ```bash
+   cp <copilot-template-path>/.github/hooks/post-merge <copilot-template-path>/.git/hooks/post-merge
+   chmod +x <copilot-template-path>/.git/hooks/post-merge
+   ```
+   After installation, every `git pull` in copilot-template will automatically sync updated agents, skills, commands, and code-graph files to all registered projects — and rebuild their graphs if `code_graph: true`.
+
 ## Guardrails
 
 - Never guess at commands — if you can't detect them, ask.

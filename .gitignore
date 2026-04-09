@@ -26,5 +26,9 @@ Thumbs.db
 .code-graph/
 **/node_modules/
 
+# Machine-specific project registry and sync log (each user has their own)
+projects.json
+.github/sync.log
+
 # OpenSpec change archives (optional — uncomment to ignore)
 # openspec/changes/archive/

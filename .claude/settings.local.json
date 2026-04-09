@@ -46,7 +46,9 @@
       "Bash(cp -r //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/code-graph/parsers/ //wsl.localhost/Ubuntu/home/paul/cybergrid/.github/code-graph/parsers/)",
       "Bash(uv --version)",
       "Read(//c/Users/paull/AppData/Local/Python/bin//**)",
-      "Read(//c/Users/paull/AppData/Local/Programs/**)"
+      "Read(//c/Users/paull/AppData/Local/Programs/**)",
+      "Bash(cp //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.github/hooks/post-merge //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.git/hooks/post-merge)",
+      "Bash(chmod +x //wsl.localhost/Ubuntu/home/paul/cybergrid/copilot-template/.git/hooks/post-merge)"
     ]
   },
   "enableAllProjectMcpServers": true,
