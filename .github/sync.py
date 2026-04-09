@@ -24,7 +24,7 @@ LOG_FILE = Path(__file__).parent / "sync.log"
 SKIP_DIRS = {"node_modules", "__pycache__", ".code-graph"}
 SKIP_SUFFIXES = {".bak", ".pyc", ".db"}
 
-# Never overwrite these — user has customized them during initialization
+# Never overwrite these - user has customized them during initialization
 SKIP_FILES = {"CLAUDE.md", "copilot-instructions.md", "config.yaml"}
 
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ def sync_project(project: dict) -> bool:
             log.info("  .mcp.json  1 file")
             total += 1
 
-    log.info("SYNC %s — %d files updated", path, total)
+    log.info("SYNC %s - %d files updated", path, total)
 
     # Rebuild graph + regenerate visualizer
     if code_graph:
@@ -139,7 +139,7 @@ def _rebuild_graph(project_path: Path) -> None:
     reqs = project_path / ".github" / "code-graph" / "requirements.txt"
 
     if not server.exists():
-        log.warning("SKIP graph rebuild — server.py not found in %s", project_path)
+        log.warning("SKIP graph rebuild - server.py not found in %s", project_path)
         return
 
     if uv and reqs.exists():
@@ -194,7 +194,7 @@ def main() -> None:
     _ensure_hooks()
 
     if not PROJECTS_FILE.exists():
-        log.info("projects.json not found — no projects registered.")
+        log.info("projects.json not found - no projects registered.")
         return
 
     try:
@@ -212,7 +212,7 @@ def main() -> None:
     t_start = time.perf_counter()
     ok = 0
     for p in projects:
-        log.info("→ %s", p.get("path", "(no path)"))
+        log.info("=> %s", p.get("path", "(no path)"))
         if sync_project(p):
             ok += 1
 
