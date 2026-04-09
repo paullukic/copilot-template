@@ -187,12 +187,13 @@ _SHELL = r"""<!DOCTYPE html>
 <body>
 
 <div id="panel">
+  <div id="panel-resize"></div>
   <div id="panel-header">
     <div id="breadcrumb">
       <button id="back-btn">&#x2190; Back</button>
       <span id="crumb-text">Services</span>
     </div>
-    <input id="search" type="text" placeholder="Filter…" autocomplete="off">
+    <input id="search" type="text" placeholder="Search…" autocomplete="off">
   </div>
 
   <div id="panel-body">
@@ -228,16 +229,22 @@ _SHELL = r"""<!DOCTYPE html>
       <span class="filter-count" id="cnt-tests_for"></span>
     </label>
     <label class="filter-row">
-      <input type="checkbox" data-etype="inherits">
+      <input type="checkbox" data-etype="inherits" checked>
       <span class="swatch" style="background:#e74c3c"></span>
       <span class="filter-label">inherits</span>
       <span class="filter-count" id="cnt-inherits"></span>
     </label>
     <label class="filter-row">
-      <input type="checkbox" data-etype="implements">
+      <input type="checkbox" data-etype="implements" checked>
       <span class="swatch" style="background:#1abc9c"></span>
       <span class="filter-label">implements</span>
       <span class="filter-count" id="cnt-implements"></span>
+    </label>
+    <label class="filter-row">
+      <input type="checkbox" data-etype="contains">
+      <span class="swatch" style="background:#d4b43a"></span>
+      <span class="filter-label">contains (file→symbol)</span>
+      <span class="filter-count" id="cnt-contains"></span>
     </label>
 
     <div id="show-all-row">
@@ -245,6 +252,26 @@ _SHELL = r"""<!DOCTYPE html>
         <input type="checkbox" id="show-all-cb">
         <span class="filter-label">Show all edges in view</span>
       </label>
+    </div>
+
+    <div id="exclude-tests-row" style="display:none">
+      <label class="filter-row">
+        <input type="checkbox" id="exclude-tests-cb" checked onchange="Graph.onExcludeTestsChange()">
+        <span class="filter-label">Exclude test files</span>
+      </label>
+      <label class="filter-row">
+        <input type="checkbox" id="exclude-pomspec-cb" checked onchange="Graph.onExcludePomSpecChange()">
+        <span class="filter-label">Exclude pom / specs / package-info</span>
+      </label>
+    </div>
+
+    <div id="sym-type-filters" style="display:none">
+      <div class="sec-title">Show Symbols</div>
+      <label class="filter-row"><input type="checkbox" class="sym-type-cb" data-symtype="class" onchange="Graph.onSymTypeChange()"><span class="dot-swatch" style="background:#2980b9"></span><span class="filter-label">Classes</span></label>
+      <label class="filter-row"><input type="checkbox" class="sym-type-cb" data-symtype="interface" onchange="Graph.onSymTypeChange()"><span class="dot-swatch" style="background:#8e44ad"></span><span class="filter-label">Interfaces</span></label>
+      <label class="filter-row"><input type="checkbox" class="sym-type-cb" data-symtype="enum" onchange="Graph.onSymTypeChange()"><span class="dot-swatch" style="background:#27ae60"></span><span class="filter-label">Enums</span></label>
+      <label class="filter-row"><input type="checkbox" class="sym-type-cb" data-symtype="function" onchange="Graph.onSymTypeChange()"><span class="dot-swatch" style="background:#e67e22"></span><span class="filter-label">Functions / Methods</span></label>
+      <label class="filter-row"><input type="checkbox" class="sym-type-cb" data-symtype="annotation" onchange="Graph.onSymTypeChange()"><span class="dot-swatch" style="background:#c0392b"></span><span class="filter-label">Annotations</span></label>
     </div>
 
     <div class="sec-title" id="ext-title" style="display:none">File types</div>
@@ -291,7 +318,7 @@ _SHELL = r"""<!DOCTYPE html>
 <div id="tooltip"><div id="tt-title"></div><div id="tt-sub"></div><div id="tt-extra"></div></div>
 <div id="stats"></div>
 <div id="help-hint"><b>Click</b> node = select + connections<br><b>Double-click</b> = drill down<br><b>Scroll</b> = zoom<br><b>Click connection</b> = navigate</div>
-<svg id="graph"></svg>
+<canvas id="graph"></canvas>
 
 <script>/*D3_INLINE*/</script>
 <script>/*GRAPH_DATA*/</script>

@@ -410,6 +410,165 @@ const Panel = (() => {
     }
   }
 
+  /* ---- Nested checkbox folder tree ---- */
+  let _treeCallbacks = {};
+  let _allTreeFiles = [];
+
+  function buildCheckboxTree(nodes, { colorFn, labelFn, pathFn, onClickFn, onCheckChange }) {
+    const section = $("node-list-section"), container = $("node-list"), countEl = $("node-list-count");
+    container.innerHTML = "";
+    if (!nodes.length) { section.classList.remove("visible"); return; }
+    section.classList.add("visible");
+    countEl.textContent = "(" + nodes.length + ")";
+    _allTreeFiles = nodes;
+    _treeCallbacks = { onCheckChange, colorFn, labelFn, onClickFn, pathFn };
+
+    // 1. Build raw tree
+    const root = { ch: {}, files: [] };
+    const mkNode = () => ({ ch: {}, files: [] });
+    for (const node of nodes) {
+      const fp = (pathFn(node) || "").replace(/\\/g, "/");
+      const parts = fp.split("/");
+      parts.pop(); // remove filename
+      let cur = root;
+      for (const p of parts) {
+        if (!p) continue; // skip empty segments
+        if (!cur.ch[p]) cur.ch[p] = mkNode();
+        cur = cur.ch[p];
+        // Defensive: ensure cur always has files array
+        if (!cur.files) cur.files = [];
+        if (!cur.ch) cur.ch = {};
+      }
+      cur.files.push(node);
+    }
+
+    // 2. Collapse single-child-no-files chains
+    function collapse(node) {
+      const result = { ch: {}, files: node.files || [] };
+      for (let [name, child] of Object.entries(node.ch || {})) {
+        let cur = child;
+        while (cur && Object.keys(cur.ch || {}).length === 1 && (cur.files || []).length === 0) {
+          const [k, v] = Object.entries(cur.ch)[0];
+          name += "/" + k;
+          cur = v;
+        }
+        if (cur) result.ch[name] = collapse(cur);
+      }
+      return result;
+    }
+    const tree = collapse(root);
+
+    // 3. Toolbar
+    const toolbar = document.createElement("div");
+    toolbar.style.cssText = "display:flex;gap:6px;margin-bottom:6px;";
+    const mkBtn = (txt, checked) => {
+      const b = document.createElement("button"); b.textContent = txt; b.className = "tree-btn";
+      b.addEventListener("click", () => {
+        container.querySelectorAll(".nl-folder").forEach(f => {
+          if (f.style.display !== "none") { const cb = f.querySelector(":scope > .nl-folder-header > .folder-cb"); if (cb) cb.checked = checked; }
+        });
+        _fireCheck(container);
+      });
+      return b;
+    };
+    toolbar.appendChild(mkBtn("All", true));
+    toolbar.appendChild(mkBtn("None", false));
+    container.appendChild(toolbar);
+
+    // 4. Render
+    _renderTree(container, tree, colorFn, labelFn, onClickFn, container);
+  }
+
+  function _renderTree(parent, node, colorFn, labelFn, onClickFn, rootContainer) {
+    for (const key of Object.keys(node.ch).sort()) {
+      const child = node.ch[key];
+      const total = _countAll(child);
+
+      const folder = document.createElement("div"); folder.className = "nl-folder";
+      const header = document.createElement("div"); header.className = "nl-folder-header";
+
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.className = "folder-cb";
+      cb.addEventListener("change", () => {
+        // Propagate to ALL descendant checkboxes
+        folder.querySelectorAll(".folder-cb").forEach(c => { c.checked = cb.checked; });
+        _fireCheck(rootContainer);
+      });
+      cb.addEventListener("click", e => e.stopPropagation());
+
+      const chevron = document.createElement("span"); chevron.className = "nl-chevron";
+      const name = document.createElement("span"); name.className = "nl-folder-name"; name.textContent = key;
+      const count = document.createElement("span"); count.className = "nl-folder-count"; count.textContent = total;
+      header.append(cb, chevron, name, count);
+
+      const contents = document.createElement("div"); contents.className = "nl-folder-contents"; contents.style.display = "none";
+      header.addEventListener("click", e => {
+        if (e.target === cb) return;
+        chevron.classList.toggle("open");
+        contents.style.display = chevron.classList.contains("open") ? "" : "none";
+      });
+
+      // Nested folders first (IDE order)
+      _renderTree(contents, child, colorFn, labelFn, onClickFn, rootContainer);
+
+      // Files at bottom
+      for (const file of [...(child.files||[])].sort((a, b) => labelFn(a).toLowerCase() < labelFn(b).toLowerCase() ? -1 : 1)) {
+        const item = document.createElement("div"); item.className = "nl-item"; item.dataset.nodeId = file.id;
+        const dot = document.createElement("span"); dot.className = "nl-dot"; dot.style.background = colorFn(file);
+        const nameEl = document.createElement("div"); nameEl.className = "nl-name";
+        nameEl.appendChild(dot); nameEl.appendChild(document.createTextNode(labelFn(file)));
+        item.appendChild(nameEl);
+        item.addEventListener("click", e => { e.stopPropagation(); onClickFn(file); });
+        contents.appendChild(item);
+      }
+
+      folder.appendChild(header);
+      folder.appendChild(contents);
+      parent.appendChild(folder);
+    }
+  }
+
+  function _countAll(node) {
+    let c = node.files.length;
+    for (const v of Object.values(node.ch)) c += _countAll(v);
+    return c;
+  }
+
+  function _fireCheck(rootContainer) {
+    // For each checked folder, collect file IDs from its direct .nl-item children
+    // (not from nested sub-folders — those have their own checkbox)
+    const selectedIds = new Set();
+    rootContainer.querySelectorAll(".folder-cb:checked").forEach(cb => {
+      const folder = cb.closest(".nl-folder");
+      if (!folder) return;
+      const contents = folder.querySelector(":scope > .nl-folder-contents");
+      if (!contents) return;
+      contents.querySelectorAll(":scope > .nl-item[data-node-id]").forEach(item => {
+        selectedIds.add(item.dataset.nodeId);
+      });
+    });
+    if (_treeCallbacks.onCheckChange) _treeCallbacks.onCheckChange(selectedIds);
+  }
+
+  /** Reveal a node in the tree: expand parent folders, scroll into view, highlight */
+  function revealAndHighlight(nodeId) {
+    const container = $("node-list");
+    container.querySelectorAll(".nl-item.active").forEach(el => el.classList.remove("active"));
+    if (!nodeId) return;
+    const item = container.querySelector('[data-node-id="' + nodeId + '"]');
+    if (!item) return;
+    let el = item.parentElement;
+    while (el && el !== container) {
+      if (el.classList.contains("nl-folder-contents")) {
+        el.style.display = "";
+        const chevron = el.previousElementSibling?.querySelector(".nl-chevron");
+        if (chevron) chevron.classList.add("open");
+      }
+      el = el.parentElement;
+    }
+    item.classList.add("active");
+    item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
   function _appendNodeItem(container, node, { colorFn, labelFn, subFn, onClickFn }) {
     const item = document.createElement("div");
     item.className = "nl-item";
@@ -487,10 +646,56 @@ const Panel = (() => {
 
   function getActiveExts() { return activeExts; }
 
-  /* ---- Search ---- */
+  /* ---- Search: filter sidebar + dim graph ---- */
+  function _filterSidebar(q) {
+    const container = $("node-list");
+    if (!q) {
+      // Show everything
+      container.querySelectorAll(".nl-folder, .nl-item").forEach(el => { el.style.display = ""; });
+      return;
+    }
+    // Mark each file item as match/no-match
+    container.querySelectorAll(".nl-item").forEach(item => {
+      const text = (item.querySelector(".nl-name")?.textContent || "").toLowerCase();
+      item.style.display = text.includes(q) ? "" : "none";
+      item.dataset.match = text.includes(q) ? "1" : "";
+    });
+    // For each folder (bottom-up): show if folder name matches OR any child matches
+    // Process deepest first by reversing the NodeList
+    const allFolders = [...container.querySelectorAll(".nl-folder")].reverse();
+    for (const folder of allFolders) {
+      const folderName = (folder.querySelector(":scope > .nl-folder-header .nl-folder-name")?.textContent || "").toLowerCase();
+      const nameMatch = folderName.includes(q);
+      const contents = folder.querySelector(":scope > .nl-folder-contents");
+      // Check if any direct child items or child folders are visible
+      let hasVisibleChild = false;
+      if (contents) {
+        for (const child of contents.children) {
+          if (child.style.display !== "none") { hasVisibleChild = true; break; }
+        }
+      }
+      if (nameMatch) {
+        // Folder name matches — show folder and all its contents
+        folder.style.display = "";
+        if (contents) contents.querySelectorAll(".nl-item, .nl-folder").forEach(el => { el.style.display = ""; });
+      } else if (hasVisibleChild) {
+        // Child matches — show folder, expand it
+        folder.style.display = "";
+        if (contents) { contents.style.display = ""; const chev = folder.querySelector(":scope > .nl-folder-header .nl-chevron"); if (chev) chev.classList.add("open"); }
+      } else {
+        folder.style.display = "none";
+      }
+    }
+    // Also filter flat list items (service view)
+    container.querySelectorAll(":scope > .nl-item").forEach(item => {
+      const text = ((item.querySelector(".nl-name")?.textContent || "") + " " + (item.querySelector(".nl-path")?.textContent || "")).toLowerCase();
+      item.style.display = text.includes(q) ? "" : "none";
+    });
+  }
   $("search").addEventListener("input", e => {
     const q = e.target.value.toLowerCase().trim();
     Graph.applySearch(q);
+    _filterSidebar(q);
   });
 
   /* ---- Back ---- */
@@ -514,8 +719,8 @@ const Panel = (() => {
   });
 
   $("show-all-cb").addEventListener("change", e => {
-    if (e.target.checked) { Graph.deselect(); Graph.drawAllEdgesInView(); }
-    else Graph.clearEdges();
+    if (e.target.checked) { Graph.drawAllEdgesInView(); }
+    else { Graph.onEdgeFilterChange(); }
   });
 
   /* ---- Public API ---- */
@@ -528,7 +733,9 @@ const Panel = (() => {
     buildExtFilters,
     getActiveExts,
     buildNodeList,
+    buildCheckboxTree,
     highlightNodeListItem,
+    revealAndHighlight,
     hideNodeList,
   };
 

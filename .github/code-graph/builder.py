@@ -163,6 +163,11 @@ _NPM_PREFIXES = frozenset({
 
 def _is_npm_import(imp: str, aliases: list[tuple[str, str]]) -> bool:
     """Return True if the import looks like an npm package (not local)."""
+    # Java/Kotlin/Scala qualified names use dots, not slashes — never npm
+    if re.match(r'^[a-z][a-z0-9]*\.', imp) and '/' not in imp:
+        return False
+    if imp.endswith(".*"):
+        return False
     if imp.startswith(".") or imp.startswith("/"):
         return False
     # Check if it matches a known path alias first — those are local
