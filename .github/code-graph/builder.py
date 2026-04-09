@@ -15,6 +15,7 @@ Output: .code-graph/graph.db
 Supported stacks: Python, React/Next.js, Angular, Vue, Svelte,
     Java/Kotlin/Scala, C#/F# (.NET), Go, Rust, PHP/Laravel,
     Ruby/Rails, Swift, Dart/Flutter, CSS/SCSS/LESS.
+    TODO: Add more support.
 """
 
 from __future__ import annotations
@@ -449,6 +450,56 @@ def _link_inheritance(conn: sqlite3.Connection) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Calls resolution
+# ---------------------------------------------------------------------------
+
+
+def _link_calls(conn: sqlite3.Connection) -> None:
+    """Resolve raw callee-name 'calls' edges to function/method node IDs.
+
+    Parsers emit (fn_nid, callee_name_string, 'calls') edges.
+    This step resolves the name strings to actual node IDs where possible.
+    Same-file matches are preferred; unresolvable edges are deleted.
+    """
+    # Index: name -> list of (file, nid) for all callable nodes
+    by_name: dict[str, list[tuple[str, str]]] = {}
+    for fn_id, name, file in conn.execute(
+        "SELECT id, name, file FROM nodes WHERE kind IN ('function', 'method')"
+    ):
+        by_name.setdefault(name, []).append((file, fn_id))
+
+    # Source function -> its file (for same-file preference)
+    src_file: dict[str, str] = {
+        row[0]: row[1]
+        for row in conn.execute(
+            "SELECT id, file FROM nodes WHERE kind IN ('function', 'method')"
+        )
+    }
+
+    inserts: list[tuple[str, str, str]] = []
+    deletions: list[tuple[str, str, str]] = []
+
+    for src_id, callee_name in list(conn.execute(
+        "SELECT src, dst FROM edges WHERE kind='calls'"
+    )):
+        deletions.append((src_id, callee_name, 'calls'))
+        candidates = by_name.get(callee_name, [])
+        if not candidates:
+            continue
+        # Prefer same-file match, then any match
+        file_of_src = src_file.get(src_id, "")
+        same = [(f, n) for f, n in candidates if f == file_of_src]
+        target_nid = (same or candidates)[0][1]
+        if target_nid != src_id:
+            inserts.append((src_id, target_nid, 'calls'))
+
+    conn.executemany(
+        "DELETE FROM edges WHERE src=? AND dst=? AND kind=?", deletions
+    )
+    conn.executemany("INSERT OR IGNORE INTO edges VALUES (?,?,?)", inserts)
+
+
+# ---------------------------------------------------------------------------
 # Graph traversal
 # ---------------------------------------------------------------------------
 
@@ -540,6 +591,9 @@ def build(root: Path) -> Path:
     with _timed("link inheritance"):
         _link_inheritance(conn)
 
+    with _timed("link calls"):
+        _link_calls(conn)
+
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('root',?)", (str(root),))
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('files_parsed',?)", (str(file_count),))
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('stacks',?)", (",".join(sorted(stacks)),))
@@ -630,8 +684,9 @@ def update(root: Path) -> tuple[Path, list[str]]:
     conn.executemany("INSERT OR IGNORE INTO edges VALUES (?,?,?)", all_edges)
 
     _link_tests(conn)
-    _resolve_file_deps(conn)
+    _resolve_file_deps(conn, root)
     _link_inheritance(conn)
+    _link_calls(conn)
 
     conn.execute(
         "INSERT OR REPLACE INTO meta VALUES ('files_parsed',?)",
