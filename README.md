@@ -25,9 +25,9 @@ See [SETUP.md](SETUP.md) for step-by-step instructions.
 
 ```bash
 # From the template (or your project after copying code-graph)
-cd .github/code-graph && npm install
-python .github/code-graph/server.py --build   # build graph first if not done
-python .github/code-graph/server.py --visualize
+cd .github/code-graph && npm install && cd ../..
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --visualize
 # Open .code-graph/graph.html in your browser
 ```
 
@@ -144,7 +144,7 @@ The code-graph is a standalone Python MCP server that parses your entire codebas
 cd .github/code-graph && npm install
 
 # Generate interactive HTML dependency graph
-python .github/code-graph/server.py --visualize
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --visualize
 # Output: .code-graph/graph.html — open in browser
 ```
 
@@ -199,7 +199,7 @@ chmod +x "$GIT_DIR/hooks/post-commit" "$GIT_DIR/hooks/post-merge" "$GIT_DIR/hook
 You never need to think about it — commit your code, the graph updates silently in the background. If `graph.db` doesn't exist yet, hooks exit silently. After a major refactor, force a full rebuild:
 
 ```bash
-python .github/code-graph/server.py --build
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
 ```
 
 ### Without vs with code-graph

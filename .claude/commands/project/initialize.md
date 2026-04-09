@@ -33,7 +33,7 @@ The full procedure is in `.github/skills/initialize-project/SKILL.md`. Follow th
    - Ensure `uv` is available (install automatically if not)
    - Add `.code-graph/` to `.gitignore`
    - Write MCP config(s) for selected tools
-   - Build initial graph: `python .github/code-graph/server.py --build`
+   - Build initial graph: `uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build`
    - Optionally install git hooks for auto-updates
 
 ## Guardrails

@@ -234,7 +234,7 @@ Do NOT overwrite existing MCP configs — merge `code-graph` key into the `serve
 The `--build` flag does NOT require the `mcp` package. Tree-sitter packages (installed via `requirements.txt`) are used automatically where available and fall back to regex parsers otherwise.
 Run in the target project root:
 ```bash
-python .github/code-graph/server.py --build
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
 ```
 
 Expected output includes timed progress per phase, ending with:
@@ -280,8 +280,10 @@ chmod +x "$GIT_DIR/hooks/post-commit" "$GIT_DIR/hooks/post-merge" "$GIT_DIR/hook
 Each hook runs:
 
 ```bash
-python .github/code-graph/server.py --update
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --update
 ```
+
+(Falls back to `python .github/code-graph/server.py --update` if uv is unavailable.)
 
 Behavior:
 - If `.code-graph/graph.db` does not exist yet, the hook exits silently.

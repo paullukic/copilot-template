@@ -64,7 +64,7 @@ Zero results = done.
 cd .github/code-graph && npm install && cd -
 
 # Build the initial graph
-python .github/code-graph/server.py --build
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
 # Output: .code-graph/graph.db
 ```
 
@@ -120,7 +120,7 @@ cp .github/code-graph/post-rewrite "$GIT_DIR/hooks/post-rewrite"
 chmod +x "$GIT_DIR/hooks/post-commit" "$GIT_DIR/hooks/post-merge" "$GIT_DIR/hooks/post-rewrite"
 ```
 
-Each hook runs `python .github/code-graph/server.py --update` silently after every commit, merge, and rebase. If `graph.db` doesn't exist yet, hooks exit silently — safe to install before the first build.
+Each hook runs `uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --update` silently after every commit, merge, and rebase (falls back to `python` if uv is unavailable). If `graph.db` doesn't exist yet, hooks exit silently — safe to install before the first build.
 
 ### Add to .gitignore
 

@@ -112,5 +112,5 @@ If the build command fails:
 
 4. **Any other error** — show the full error output to the user and suggest running manually:
    ```
-   cd <project-root> && python3 <path-to-server.py> --build
+   cd <project-root> && uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
    ```

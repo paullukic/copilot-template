@@ -18,7 +18,7 @@ Parses your repository into a SQLite graph (`.code-graph/graph.db`) that AI tool
 From your **project root**:
 
 ```bash
-python .github/code-graph/server.py --build
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
 ```
 
 This parses all source files and writes `.code-graph/graph.db`.
@@ -28,7 +28,7 @@ This parses all source files and writes `.code-graph/graph.db`.
 After editing files, update only what changed:
 
 ```bash
-python .github/code-graph/server.py --update
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --update
 ```
 
 Uses SHA-1 content hashes to detect changes. Also re-parses files that import from changed files so cross-file edges stay accurate. If `graph.db` doesn't exist yet, falls back to a full build.
@@ -38,7 +38,7 @@ Uses SHA-1 content hashes to detect changes. Also re-parses files that import fr
 Generate a standalone HTML graph visualization:
 
 ```bash
-python .github/code-graph/server.py --visualize
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --visualize
 ```
 
 Outputs `.code-graph/graph.html`. Requires `node_modules/` (run `npm install` in this directory first).
@@ -46,8 +46,8 @@ Outputs `.code-graph/graph.html`. Requires `node_modules/` (run `npm install` in
 ### Start the MCP server
 
 ```bash
-# With uv (recommended — auto-installs mcp dependency):
-uv run --with "mcp>=1.0.0" .github/code-graph/server.py
+# With uv (recommended — auto-installs all dependencies):
+uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py
 
 # With pip:
 pip install "mcp>=1.0.0"
@@ -64,7 +64,7 @@ python .github/code-graph/server.py
     "code-graph": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--with", "mcp>=1.0.0", "${workspaceFolder}/.github/code-graph/server.py"]
+      "args": ["run", "--with-requirements", "${workspaceFolder}/.github/code-graph/requirements.txt", "${workspaceFolder}/.github/code-graph/server.py"]
     }
   }
 }
@@ -78,7 +78,7 @@ python .github/code-graph/server.py
     "code-graph": {
       "type": "stdio",
       "command": "uv",
-      "args": ["run", "--with", "mcp>=1.0.0", ".github/code-graph/server.py"]
+      "args": ["run", "--with-requirements", ".github/code-graph/requirements.txt", ".github/code-graph/server.py"]
     }
   }
 }

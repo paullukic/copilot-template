@@ -5,5 +5,10 @@
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT" || exit 0
 if [ -f ".code-graph/graph.db" ]; then
-    python .github/code-graph/server.py --update 2>/dev/null || true
+    UV=$(command -v uv 2>/dev/null || echo "$HOME/.local/bin/uv")
+    if [ -x "$UV" ]; then
+        "$UV" run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --update 2>/dev/null || true
+    else
+        python .github/code-graph/server.py --update 2>/dev/null || true
+    fi
 fi
