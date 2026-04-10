@@ -95,7 +95,7 @@ def _extract_data(db_path: Path) -> dict:
     all_node_ids = set(file_nodes) | set(symbol_nodes)
 
     # ---- File-level edges ----
-    FILE_EDGE_TYPES = ("depends_on", "tests_for", "inherits", "implements")
+    FILE_EDGE_TYPES = ("depends_on", "tests_for", "inherits", "implements", "calls")
     edges_by_type: dict[str, list] = {}
     for kind in FILE_EDGE_TYPES:
         edges_by_type[kind] = [
@@ -106,7 +106,7 @@ def _extract_data(db_path: Path) -> dict:
 
     # ---- Symbol-level edges ----
     symbol_edges: dict[str, list] = {}
-    for kind in ("contains", "inherits", "implements"):
+    for kind in ("contains", "inherits", "implements", "calls"):
         symbol_edges[kind] = [
             {"s": src, "t": dst}
             for src, dst in conn.execute("SELECT src, dst FROM edges WHERE kind=?", (kind,))
@@ -239,6 +239,12 @@ _SHELL = r"""<!DOCTYPE html>
       <span class="swatch" style="background:#1abc9c"></span>
       <span class="filter-label">implements</span>
       <span class="filter-count" id="cnt-implements"></span>
+    </label>
+    <label class="filter-row">
+      <input type="checkbox" data-etype="calls">
+      <span class="swatch" style="background:#3498db"></span>
+      <span class="filter-label">calls</span>
+      <span class="filter-count" id="cnt-calls"></span>
     </label>
     <label class="filter-row">
       <input type="checkbox" data-etype="contains">

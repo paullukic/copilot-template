@@ -34,6 +34,7 @@ const Panel = (() => {
       if (e.tests_for)  outByTarget.get(e.id).push({ kind: "tests_for",  n: e.tests_for });
       if (e.inherits)   outByTarget.get(e.id).push({ kind: "inherits",   n: e.inherits });
       if (e.implements) outByTarget.get(e.id).push({ kind: "implements", n: e.implements });
+      if (e.calls)      outByTarget.get(e.id).push({ kind: "calls",      n: e.calls });
     }
 
     const inBySource = new Map();
@@ -43,6 +44,7 @@ const Panel = (() => {
       if (e.tests_for)  inBySource.get(e.id).push({ kind: "tests_for",  n: e.tests_for });
       if (e.inherits)   inBySource.get(e.id).push({ kind: "inherits",   n: e.inherits });
       if (e.implements) inBySource.get(e.id).push({ kind: "implements", n: e.implements });
+      if (e.calls)      inBySource.get(e.id).push({ kind: "calls",      n: e.calls });
     }
 
     // Render outbound section

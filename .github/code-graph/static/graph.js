@@ -21,10 +21,10 @@ const Graph = (() => {
   const fileColor = ext => EXT_COLORS[ext] || "#556";
   const SYM_COLORS = {"class":"#2980b9","interface":"#8e44ad","enum":"#27ae60","function":"#e67e22","method":"#d35400","annotation":"#c0392b","table":"#16a085","endpoint":"#2c3e50"};
   const symColor = kind => SYM_COLORS[kind] || "#556";
-  const EDGE_COLORS = {depends_on:"#c8851a",tests_for:"#2a9d5c",inherits:"#e74c3c",implements:"#1abc9c",contains:"#d4b43a"};
+  const EDGE_COLORS = {depends_on:"#c8851a",tests_for:"#2a9d5c",inherits:"#e74c3c",implements:"#1abc9c",calls:"#3498db",contains:"#d4b43a"};
   const EDGE_STYLES = {
     depends_on:{w:1.2,dash:null,op:0.55}, tests_for:{w:1.8,dash:[4,3],op:0.55},
-    inherits:{w:2.0,dash:null,op:0.65}, implements:{w:1.5,dash:[6,3],op:0.55}, contains:{w:0.8,dash:[2,2],op:0.25},
+    inherits:{w:2.0,dash:null,op:0.65}, implements:{w:1.5,dash:[6,3],op:0.55}, calls:{w:1.0,dash:[3,2],op:0.45}, contains:{w:0.8,dash:[2,2],op:0.25},
   };
 
   /* ---- Adjacency ---- */
@@ -44,7 +44,7 @@ const Graph = (() => {
   }
   const svcAdj = {out:new Map(),in:new Map()};
   for (const e of graphData.serviceEdges) {
-    const total=(e.depends_on||0)+(e.tests_for||0)+(e.inherits||0)+(e.implements||0);
+    const total=(e.depends_on||0)+(e.tests_for||0)+(e.inherits||0)+(e.implements||0)+(e.calls||0);
     if (!svcAdj.out.has(e.s)) svcAdj.out.set(e.s,[]);
     svcAdj.out.get(e.s).push({id:e.t,n:total,...e});
     if (!svcAdj.in.has(e.t)) svcAdj.in.set(e.t,[]);
@@ -121,7 +121,7 @@ const Graph = (() => {
     if(selectedId&&k>0.4){
       const elFs=Math.min(10,Math.max(6,8/Math.sqrt(k)));
       ctx.font=`${elFs}px -apple-system,sans-serif`;ctx.textAlign="center";ctx.textBaseline="middle";
-      const shortKind={depends_on:"dep",tests_for:"test",inherits:"ext",implements:"impl",contains:"has"};
+      const shortKind={depends_on:"dep",tests_for:"test",inherits:"ext",implements:"impl",calls:"call",contains:"has"};
       for(const e of curEdges){const sn=e._sn,tn=e._tn;if(!sn||!tn)continue;if(e._op&&e._op<0.3)continue;
         const mx=(sn.x+tn.x)/2,my=(sn.y+tn.y)/2;
         ctx.globalAlpha=0.8;ctx.strokeStyle="#0f1117";ctx.lineWidth=2.5;ctx.lineJoin="round";
@@ -317,7 +317,7 @@ const Graph = (() => {
     curNodes=graphData.services.map(s=>({...s,_r:svcR(s),_color:SVC_COLORS(s.id)}));
     _setPanel({crumb:"Services",back:false,showAll:false,fileLegend:false,symLegend:false,svcLegend:true,extFilters:false,symTypeFilters:false,excludeTests:false,search:"Search services…"});
     Panel.hideNodeInfo();
-    const totalEdges=graphData.serviceEdges.reduce((a,e)=>a+(e.depends_on||0)+(e.tests_for||0)+(e.inherits||0)+(e.implements||0),0);
+    const totalEdges=graphData.serviceEdges.reduce((a,e)=>a+(e.depends_on||0)+(e.tests_for||0)+(e.inherits||0)+(e.implements||0)+(e.calls||0),0);
     setStats(curNodes.length+" services · "+graphData.totalFiles.toLocaleString()+" files · "+graphData.totalSymbols.toLocaleString()+" symbols · "+totalEdges.toLocaleString()+" cross-svc edges");
     runSimulation(d3.forceSimulation(curNodes).force("charge",d3.forceManyBody().strength(-800)).force("center",d3.forceCenter(W/2,H/2)).force("collision",d3.forceCollide(d=>d._r+30)).force("link",d3.forceLink(graphData.serviceEdges.map(e=>({source:e.s,target:e.t}))).id(d=>d.id).distance(200).strength(0.1)).alphaDecay(0.025));
     Panel.buildNodeList(curNodes,{colorFn:d=>d._color,labelFn:d=>d.label,subFn:d=>d.files+" files, "+d.classes+" cls, "+d.functions+" fn",onClickFn:d=>{panToNode(d);selectService(d);}});
