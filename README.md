@@ -1,333 +1,174 @@
 # Copilot Template
 
-Reusable AI coding assistant configuration for any project. Works with **VS Code Copilot**, **Claude Code**, **Cursor**, and **Windsurf**.
+Reusable AI coding assistant configuration for any project. Works with **Claude Code**, **VS Code Copilot**, **Cursor**, and **Windsurf**.
 
-Gives AI tools your actual conventions, a structured development workflow, specialized agents with anti-hallucination guardrails, and an optional code-graph MCP server that replaces brute-force file searching with targeted SQLite queries.
+Ships a structured workflow, specialized agents with anti-hallucination guardrails, Claude Code lifecycle hooks, and an optional code-graph MCP server that replaces brute-force file searching with targeted SQLite queries.
 
----
+## Contents
+
+- [Quick Start](#quick-start)
+- [What's Inside](#whats-inside)
+- [Workflow](#workflow)
+- [Agents](#agents)
+- [Claude Code Hooks](#claude-code-hooks)
+- [Code Graph](#code-graph)
+- [Project Sync](#project-sync)
+- [Customization](#customization)
+- [Reliability](#reliability)
 
 ## Quick Start
-
-### Option A — Automated (recommended)
 
 | Tool | Command |
 |------|---------|
 | Claude Code | `/project:initialize` |
 | VS Code Copilot | Invoke the `initialize-project` skill |
 
-The initializer detects your stack, copies files, fills all placeholders, and optionally sets up the code-graph. Done in ~2 minutes.
+The initializer detects your stack, fills all `_TBD_` placeholders, and optionally sets up the code-graph. About 2 minutes.
 
-### Option B — Manual
+Manual setup: see [SETUP.md](SETUP.md). Prerequisites and visualizer: see [.github/code-graph/README.md](.github/code-graph/README.md).
 
-See [SETUP.md](SETUP.md) for step-by-step instructions.
+## What's Inside
 
-### Visualizer
+| Component | Purpose |
+|-----------|---------|
+| **Workflow** | Plan → Propose → Apply → Review → Archive pipeline |
+| **Agents** | 5 specialized agents (Planner, Reviewer, Debugger, Verifier, Explore) |
+| **Claude Code Hooks** | Lifecycle hooks — block generated files, log bash, warn on out-of-scope edits, inject graph status |
+| **Code Graph** | SQLite dependency graph with MCP server for targeted queries |
+| **Instructions** | Domain-specific guidance (testing, styling) loaded on demand |
+| **Sync** | Template updates propagate to every registered project on `git pull` |
 
-```bash
-# From the template (or your project after copying code-graph)
-cd .github/code-graph && npm install && cd ../..
-uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
-uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --visualize
-# Open .code-graph/graph.html in your browser
-```
+## Workflow
 
-### Prerequisites
-
-| Dependency | Required for | Install |
-|-----------|-------------|---------|
-| Python 3.10+ | Code-graph MCP server (optional) | System package manager |
-| [uv](https://docs.astral.sh/uv/) | Running code-graph server | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-
----
-
-## Initialization — What Happens
-
-Running `/project:initialize` or the `initialize-project` skill walks through these steps:
-
-**Step 1 — Gather info**
-Asks: target project path, which AI tools to configure (Claude Code / VS Code Copilot / both), sections to skip (i18n, API design, etc.), project-specific rules, and whether to enable the code-graph.
-
-**Step 2 — Detect tech stack**
-Reads manifest files in your project (`package.json`, `pom.xml`, `go.mod`, `Cargo.toml`, `tsconfig.json`, etc.) and the `src/` structure. Extracts language, framework, ORM, testing tools, build commands, and key directory paths. Presents findings for your confirmation.
-
-**Step 3 — Copy template files**
-Copies only what's relevant to your selected tools. Never overwrites existing files without asking — shows both versions and lets you choose: overwrite, skip, or section-by-section merge.
-
-**Step 4 — Fill placeholders**
-Replaces all `_TBD_` and `<!-- FILL: ... -->` markers using the detected stack. Adds your project-specific rules. Removes sections you said to skip.
-
-**Step 5 — Verify**
-Greps for remaining `_TBD_` or `<!-- FILL` markers and asks for any still-missing info. Zero markers = done.
-
-**Step 6 — Code-graph setup** (if enabled)
-Copies the MCP server files, installs d3, installs `uv` if needed, writes MCP config for your selected tools, builds the initial graph, and optionally installs git hooks for automatic updates.
-
-**Step 7 — Done**
-Reports every file created or modified. Asks if you want to commit.
-
----
-
-## The Workflow
-
-Every non-trivial task follows this sequence. Trivial fixes (single file, obvious change) skip it.
+Every non-trivial task follows this sequence. Trivial fixes skip it.
 
 ```mermaid
 flowchart LR
-    PLAN["PLAN\nInvestigate codebase\nInterview user\none question at a time"]
-    PROPOSE["PROPOSE\nCreate OpenSpec\nproposal.md + tasks.md\nWait for approval"]
-    APPLY["APPLY\nWork through tasks.md\nin order\nMark done as you go"]
-    QA["QUALITY GATES\nbuild + test\nmust pass"]
-    REVIEW["REVIEW GATE\nRead actual files\nCite file:line\nFix Critical+Warning"]
-    ARCHIVE["ARCHIVE\nMove to\nopenspec/archive/"]
+    PLAN["PLAN\nInvestigate\nInterview"]
+    PROPOSE["PROPOSE\nOpenSpec\nproposal + tasks"]
+    APPLY["APPLY\nWork through\ntasks.md"]
+    QA["QA GATES\nbuild + test"]
+    REVIEW["REVIEW\nfile:line\nevidence"]
+    ARCHIVE["ARCHIVE\nMove to\narchive/"]
 
     PLAN --> PROPOSE --> APPLY --> QA --> REVIEW --> ARCHIVE
-
-    PLAN -. "Skip for\nsingle-file fixes" .-> APPLY
-    APPLY -. "On failure\n/project:debug\n3-retry limit" .-> APPLY
+    PLAN -. "Trivial fix" .-> APPLY
+    APPLY -. "Build fail\n3-retry limit" .-> APPLY
 ```
 
 | Step | Claude Code | VS Code Copilot |
 |------|-------------|----------------|
 | Plan | `/project:plan` | `@Planner` |
 | Propose | `openspec-propose` skill | `openspec-propose` skill |
-| Apply | `openspec-apply-change` skill | `openspec-apply-change` skill |
+| Apply | `openspec-apply` skill | `openspec-apply` skill |
 | Review | `/project:review` | `@Reviewer` |
 | Verify | `/project:verify` | `@Verifier` |
 | Debug | `/project:debug` | `@Debugger` |
 | Explore | `/project:explore` | `@Explore` |
-| Archive | `openspec-archive-change` skill | `openspec-archive-change` skill |
+| Archive | `openspec-archive` skill | `openspec-archive` skill |
 
-### Example
+OpenSpec changes live in `openspec/changes/<date>-<slug>/` with `proposal.md`, `specs/<capability>/spec.md`, and `tasks.md`. Completed changes move to `openspec/changes/archive/`.
 
-You drop a ticket description into the chat:
+## Agents
 
-> **Ticket CG-412**: Add email notification when a report is published. Notification should include report title, author, and a direct link. Users can opt out in profile settings.
+There is no separate `@Implementer` — the agent that plans also implements.
 
-The agent runs `/project:plan`, investigates the notification and user-settings modules, asks one clarifying question ("push-only or also in-app?"), then creates:
+| Agent | Purpose | Key constraint |
+|-------|---------|----------------|
+| **Planner** | Interview-driven planning | One question at a time. Never implements. |
+| **Reviewer** | Strict read-only code review | Every finding needs a verbatim quote from a fresh read. |
+| **Debugger** | Root-cause analysis, minimal fixes | Reproduce → Evidence → Fix → Verify. 3-attempt circuit breaker. |
+| **Verifier** | Evidence-based completion checks | Runs commands itself. PASS/FAIL/INCOMPLETE verdict. |
+| **Explore** | Fast read-only codebase Q&A | Quick / medium / thorough depth levels. |
 
-```
-openspec/changes/2026-04-09-report-publish-notification/
-  .openspec.yaml
-  proposal.md          # Why, Goals, Non-Goals, Decisions, Impact, Risks
-  specs/notification/
-    spec.md            # BDD scenarios: send on publish, opt-out respected, link correct
-  tasks.md             # 5 tasks: data model, service, email template, opt-out toggle, tests
-```
+All agents try the code-graph first, fall back to grep/read if unavailable.
 
-You approve → agent implements task by task → quality gates → review → done.
+## Claude Code Hooks
 
-### OpenSpec structure
+Lifecycle hooks in `.claude/hooks/`, wired via `.claude/settings.json`. They run automatically on every session — no agent decision, no prompt engineering required.
 
-```
-openspec/changes/2026-04-09-<slug>/
-  .openspec.yaml          # change metadata
-  proposal.md             # Why, Goals, Non-Goals, Decisions, Impact, Risks
-  specs/<capability>/
-    spec.md               # BDD requirements and acceptance scenarios
-  tasks.md                # 3-8 implementation tasks with checkboxes
-```
+| Hook | Event | What it does |
+|------|-------|--------------|
+| **`block-generated.py`** | PreToolUse (Edit/Write) | **Blocks** edits to files under `generated/`, `dist/`, `build/`, `.next/`, `node_modules/`, or anything with `@generated` / `DO NOT EDIT` / `AUTO-GENERATED` in the first 5 lines. Protects codegen output from accidental hand-edits. |
+| **`log-bash.py`** | PreToolUse (Bash) | Appends every bash command to `.claude/session.log` (gitignored, per-project). Audit trail for what the agent actually ran. |
+| **`report-graph.py`** | SessionStart | Reports code-graph state at session start: `[code-graph] N nodes, M edges, SIZEkb, updated Xh ago`. Prints a rebuild hint if `graph.db` is missing but the server is present. |
+| **`warn-scope.py`** | PreToolUse (Edit/Write) | If an active OpenSpec exists, **warns** (non-blocking) when editing a file not referenced in its `tasks.md`. Surfaces scope creep without stopping work. |
 
-Completed changes move to `openspec/changes/archive/`.
-
----
+Personal or machine-specific overrides go in `.claude/settings.local.json` (gitignored, never synced). `.claude/settings.json` is template-managed and gets overwritten on sync.
 
 ## Code Graph
 
-> Full technical reference: [.github/code-graph/README.md](.github/code-graph/README.md)
-
-The code-graph is a standalone Python MCP server that parses your entire codebase into a SQLite dependency graph. Agents query it before reading any files — replacing broad searches with targeted lookups.
-
-### Visualize your codebase
-
-```bash
-# Install d3 (one-time)
-cd .github/code-graph && npm install
-
-# Generate interactive HTML dependency graph
-uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --visualize
-# Output: .code-graph/graph.html — open in browser
-```
-
-The visualization shows all files, classes, and functions as nodes, with import/call edges between them. Useful for understanding module boundaries before a large refactor.
-
-### How it works
-
-```mermaid
-flowchart TD
-    subgraph BUILD ["Build Phase — run once, then auto-updated on every commit"]
-        SRC["Source files\nJava · TS · Python · Go · Rust · C# · Ruby · ..."]
-        DETECT["Stack detection\npom.xml · package.json · go.mod · Cargo.toml"]
-        PARSER["Language parsers\nbuilder.py"]
-        DB[("SQLite\n.code-graph/graph.db")]
-        HOOKS["Git hooks\npost-commit · post-merge · post-rewrite"]
-
-        SRC --> DETECT --> PARSER
-        PARSER -->|"nodes: files, classes, functions, methods"| DB
-        PARSER -->|"edges: imports, calls, contains, tests_for"| DB
-        HOOKS -->|"--update (SHA-1 diff, changed files only)"| DB
-    end
-
-    subgraph QUERY ["Query Phase — runs at the start of every task"]
-        TASK["Agent receives task"]
-        MCP["MCP Server\nserver.py"]
-        RESULT["Relevant files\n+ risk scores"]
-        READ["Read only those files"]
-
-        TASK -->|"get_minimal_context(task)"| MCP
-        MCP -->|"SQL query"| DB
-        DB -->|"matched nodes + edges"| MCP
-        MCP --> RESULT --> READ
-    end
-
-    BUILD --> QUERY
-```
-
-<img width="1789" height="1098" alt="image" src="https://github.com/user-attachments/assets/38ba38fb-000f-460e-ad7d-63c7b1228a87" />
-
-
-### Keeping the graph current
-
-The graph stores a SHA-1 hash for every parsed file. `--update` reads only files whose hash has changed — a 200-file project re-parses in milliseconds instead of seconds.
-
-**Git hooks** run `--update` automatically after every commit, merge, and rebase:
-
-```bash
-GIT_DIR=$(git rev-parse --git-dir)
-cp .github/code-graph/post-commit  "$GIT_DIR/hooks/post-commit"
-cp .github/code-graph/post-merge   "$GIT_DIR/hooks/post-merge"
-cp .github/code-graph/post-rewrite "$GIT_DIR/hooks/post-rewrite"
-chmod +x "$GIT_DIR/hooks/post-commit" "$GIT_DIR/hooks/post-merge" "$GIT_DIR/hooks/post-rewrite"
-```
-
-You never need to think about it — commit your code, the graph updates silently in the background. If `graph.db` doesn't exist yet, hooks exit silently. After a major refactor, force a full rebuild:
-
-```bash
-uv run --with-requirements .github/code-graph/requirements.txt .github/code-graph/server.py --build
-```
-
-### Without vs with code-graph
+A standalone Python MCP server that parses your codebase into a SQLite dependency graph. Agents query it before reading any files, replacing broad searches with exact lookups.
 
 ```mermaid
 flowchart LR
     subgraph WITHOUT ["Without code-graph"]
-        direction TB
-        A1["grep 'OrderService'\nacross all files"]
-        A2["87 matches\nacross 30+ files"]
-        A3["Read each file\nfor context"]
-        A4["~50K tokens · 20+ tool calls\nMight still miss callers"]
-        A1 --> A2 --> A3 --> A4
+        A1["grep 'OrderService'"] --> A2["87 matches,\n30+ files"] --> A3["Read each\nfor context"] --> A4["~50K tokens\n20+ tool calls"]
     end
 
     subgraph WITH ["With code-graph"]
-        direction TB
-        B1["get_minimal_context(\n'add caching to OrderService')"]
-        B2["query_graph(\n'callers_of', 'OrderService')"]
-        B3["Read 4 returned files"]
-        B4["~2K tokens · 3 tool calls\nExact results"]
-        B1 --> B2 --> B3 --> B4
+        B1["get_minimal_context(\n'add caching')"] --> B2["query_graph(\n'callers_of', X)"] --> B3["Read 4\nreturned files"] --> B4["~2K tokens\n3 tool calls"]
     end
-
-    WITHOUT ~~~ WITH
 ```
 
-**Agents gracefully degrade** when the graph is unavailable — all agents fall back to search/read automatically. MCP config, full tool reference, and supported stacks are in [.github/code-graph/README.md](.github/code-graph/README.md).
+- **Build once** — tree-sitter parsers for Java, TS, Python, Go, Rust, C#, Ruby, and more walk your source into `.code-graph/graph.db`.
+- **Auto-updated** — git hooks (`post-commit`, `post-merge`, `post-rewrite`) re-parse only files whose SHA-1 changed. Millisecond updates.
+- **Query first** — agents call `get_minimal_context()` before any file read, falling back to grep only on failure.
+- **Visualize** — `server.py --visualize` outputs an interactive `.code-graph/graph.html`.
 
----
+Full reference (install, MCP config, supported stacks, tool list): [.github/code-graph/README.md](.github/code-graph/README.md).
 
-## Agents
+## Project Sync
 
-There is no separate `@Implementer` agent — the agent that plans and proposes also implements.
+Template updates propagate to every registered project automatically.
 
-| Agent | Purpose | Key constraint |
-|-------|---------|----------------|
-| **Reviewer** | Strict read-only code review | Reads actual files, never raw diffs. Every finding needs a verbatim quote from a fresh file read — no quote, drop the finding. |
-| **Debugger** | Root-cause analysis, minimal fixes | Reproduce → Evidence → Hypothesize → Fix → Verify. Circuit breaker at 3 failed attempts. Scope check after every fix. |
-| **Planner** | Interview-driven planning | Investigates codebase before asking user anything. One question at a time. Never implements — hands off to OpenSpec. |
-| **Verifier** | Evidence-based completion checks | Fresh evidence only. Runs commands itself, never trusts claims. PASS/FAIL/INCOMPLETE verdict. |
-| **Explore** | Fast read-only codebase Q&A | Quick / medium / thorough depth levels. Summary → Evidence → Details output. |
+1. `/project:initialize` writes your project to `projects.json`.
+2. Install the hook once in the copilot-template repo:
+   ```bash
+   cp .github/hooks/post-merge .git/hooks/post-merge
+   chmod +x .git/hooks/post-merge
+   ```
+3. From then on, `git pull` in copilot-template triggers `sync.py`, which copies updated template files to every registered project and rebuilds their code-graphs.
 
-All agents attempt the code-graph first (Phase 0) before reading any file. They fall back to search/read automatically if the graph is unavailable.
-
----
-
-## Keeping Projects in Sync
-
-When you update copilot-template (new agent rules, parser improvements, bug fixes), registered projects update automatically.
-
-### How it works
-
-1. The initializer writes your project to `projects.json` in copilot-template.
-2. A post-merge hook in copilot-template runs after every `git pull`.
-3. The hook calls `sync.py`, which copies updated template files to every registered project and rebuilds their code-graphs.
-
-### Install the hook once
-
-```bash
-# Run in the copilot-template directory
-cp .github/hooks/post-merge .git/hooks/post-merge
-chmod +x .git/hooks/post-merge
-```
-
-After that, `git pull` in copilot-template is all you need. Sync output is appended to `.github/sync.log`.
-
-### What gets synced
-
-| Synced (pure template) | Skipped (user-customized) |
-|------------------------|--------------------------|
+| Synced (template-managed) | Not synced (user-owned) |
+|---|---|
 | `.github/agents/` | `CLAUDE.md` |
 | `.github/skills/` | `.github/copilot-instructions.md` |
 | `.github/prompts/` | `openspec/config.yaml` |
-| `.github/instructions/` | |
+| `.github/instructions/` | `.claude/settings.local.json` |
 | `.github/code-graph/` | |
 | `.claude/commands/project/` | |
+| `.claude/hooks/` | |
+| `.claude/settings.json` | |
 | `AGENTS.md` | |
 
-Code-graph is rebuilt automatically for projects with `"code_graph": true` in `projects.json`.
-
----
+Sync output appends to `.github/sync.log`.
 
 ## Customization
 
-### After initialization
+After initialization, review these manually:
 
-The `initialize-project` skill fills most placeholders. Review these manually afterward:
+1. **`copilot-instructions.md`** — Project-Specific Rules section (domain invariants, naming, module boundaries)
+2. **`openspec/config.yaml`** — stack and domain context for better AI-generated proposals
+3. **`testing.instructions.md`** / **`styling.instructions.md`** — uncomment rules that match your stack
 
-1. **Project-Specific Rules** in `copilot-instructions.md` — add domain invariants, module boundaries, naming restrictions
-2. **`openspec/config.yaml`** — add your stack and domain context for better AI-generated proposals
-3. **`testing.instructions.md`** — uncomment the rules that apply to your test framework
-4. **`styling.instructions.md`** — same for CSS methodology
+**Trimming for small projects:** only `.github/copilot-instructions.md` is required. Delete any of `.github/agents/`, `.github/skills/`, `.claude/`, `openspec/`, or `.github/code-graph/` you don't use.
 
-### Trimming for small projects
+## Reliability
 
-Keep `.github/copilot-instructions.md` — everything else is optional.
+**Anti-hallucination**
+- Every review/verify finding must cite a verbatim quote from a fresh file read — diffs and memory are not valid sources.
+- Agents grep for every name before using it. Never invent types or APIs.
+- Re-read modified files after 10+ turns. Never cite prior output as evidence.
+- Template guard: if `_TBD_` markers remain in instruction files, agents stop and ask before coding.
 
-| Don't need… | Delete |
-|-------------|--------|
-| VS Code Copilot | `.github/agents/`, `.github/skills/`, `.github/prompts/`, `.github/instructions/`, `AGENTS.md` |
-| Claude Code | `CLAUDE.md`, `.claude/` |
-| OpenSpec workflow | `openspec/`, skill/prompt files referencing OpenSpec |
-| Code graph | `.github/code-graph/`, add `.code-graph/` to `.gitignore` |
+**Workflow safety**
+- Circuit breakers: 3-retry limit on fixes, 3-cycle limit on review loops.
+- Feature inventory: before editing any file, list existing features and verify each is preserved.
+- Scope-creep detection: debugger reviews its own diff after every fix and reverts unrelated changes.
+- Risk-based classification: auth/security/payments/migrations always get Complex treatment regardless of file count.
 
----
-
-## Reliability Features
-
-### Anti-hallucination
-- **Evidence rule** — every review/verify finding must include a verbatim quote from a fresh file read. Diff hunks and memory are not valid sources.
-- **Chain-of-verification** — reviewer and verifier self-challenge their own findings before outputting.
-- **Graph-first navigation** — agents attempt code-graph queries before reading files. Prevents speculative reads across wrong files.
-- **Field/type verification** — agents grep for every name before using it. Stop and ask if not found — never invent types.
-- **Context hygiene** — re-read modified files after 10+ turns. Never cite own prior output as evidence.
-- **Template guard** — if `_TBD_` placeholders remain in instruction files, stop and ask before coding.
-
-### Workflow safety
-- **Circuit breakers** — 3-retry limit on fixes, 3-cycle limit on review loops.
-- **Mandatory Phase 0** — code-graph is attempted before any file read. Fallback to grep/read only on failure.
-- **Feature inventory** — before editing any file, list all existing features and verify each is preserved in the result.
-- **Scope-creep detection** — debugger reviews its own diff after every fix and reverts unrelated changes.
-- **Risk-based classification** — auth/security/payments/migrations always get Complex treatment regardless of file count.
-
-### Token efficiency
-- **Graph-first** — `get_minimal_context(task)` returns 4-6 relevant files instead of grepping 200+.
-- **Progressive disclosure** — testing and styling instructions load only when editing matching files.
-- **Memory pointer pattern** — large intermediate results written to files in the OpenSpec directory, referenced by path.
+**Token efficiency**
+- Graph-first: `get_minimal_context(task)` returns 4-6 relevant files instead of grepping 200+.
+- Progressive disclosure: testing/styling instructions load only when editing matching files.
+- Memory-pointer pattern: large intermediate results written to files, referenced by path.

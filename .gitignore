@@ -19,6 +19,11 @@ Thumbs.db
 !.claude/
 !CLAUDE.md
 
+# Per-project bash audit log (written by .claude/hooks/log-bash.py)
+.claude/session.log
+# Local Claude Code overrides — never synced, never committed
+.claude/settings.local.json
+
 # Local AI tool state (machine-specific)
 .omc/
 

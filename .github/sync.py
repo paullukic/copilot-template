@@ -97,6 +97,21 @@ def sync_project(project: dict) -> bool:
             log.info("  .claude/commands/project  %d files", n)
             total += n
 
+        # Claude Code lifecycle hooks (block generated files, log bash, etc.)
+        hooks_src = TEMPLATE_ROOT / ".claude" / "hooks"
+        if hooks_src.exists():
+            n = _copy_dir(hooks_src, path / ".claude" / "hooks")
+            log.info("  .claude/hooks  %d files", n)
+            total += n
+
+        # Committed settings.json wires the hooks. Downstream users put
+        # personal overrides in settings.local.json (not synced).
+        settings_src = TEMPLATE_ROOT / ".claude" / "settings.json"
+        if settings_src.exists():
+            shutil.copy2(settings_src, path / ".claude" / "settings.json")
+            log.info("  .claude/settings.json  1 file")
+            total += 1
+
     # VS Code Copilot files
     if "vscode" in tools:
         for subdir in ("agents", "skills", "prompts", "instructions"):

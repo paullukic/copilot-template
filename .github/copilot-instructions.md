@@ -22,7 +22,8 @@
 - Keep diffs small, reversible, and easy to review.
 - Write a cleanup plan before modifying code during refactors.
 - Verify outcomes with evidence before claiming completion. "It should work" is not verification.
-- Run quality gates (lint, typecheck, tests) after changes — don’t assume they pass.- **Surface assumptions.** Before implementing anything non-trivial, list assumptions explicitly:
+- Run quality gates (lint, typecheck, tests) after changes — don’t assume they pass.
+- **Surface assumptions.** Before implementing anything non-trivial, list assumptions explicitly:
   ```
   ASSUMPTIONS I'M MAKING:
   1. [assumption about requirements]
@@ -46,7 +47,8 @@
   3. Add test for validation error
   → Executing unless you redirect.
   ```
-- **Simplicity check.** After writing code, ask: Can this be done in fewer lines? Are abstractions earning their complexity? Would a staff engineer say "why didn't you just..."? If 100 lines suffice and you wrote 500, you have failed.- **MANDATORY**: Before any non-trivial implementation, follow: **Plan → Propose → Apply**. Never skip straight to implementation.
+- **Simplicity check.** After writing code, ask: Can this be done in fewer lines? Are abstractions earning their complexity? Would a staff engineer say "why didn't you just..."? If 100 lines suffice and you wrote 500, you have failed.
+- **MANDATORY**: Before any non-trivial implementation, follow: **Plan → Propose → Apply**. Never skip straight to implementation.
   - **New tickets, unclear requirements**: run `@Planner` first (investigate codebase, interview user) before creating an OpenSpec proposal.
   - **Review findings, refactors with clear scope**: skip `@Planner` — the review output IS the investigation. Go straight to OpenSpec proposal.
   - OpenSpec uses a single `proposal.md` (Why, Goals/Non-Goals, Decisions, Impact, Risks) — no separate `design.md`. Keep `tasks.md` coarse: group mechanical changes by logical unit, not per-file.

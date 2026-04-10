@@ -1,5 +1,5 @@
 ---
-name: openspec-apply-change
+name: openspec-apply
 description: Implement tasks from an OpenSpec change. Use when the user wants to start or continue implementing a proposed change.
 argument-hint: Change name or slug (e.g., "add-dark-mode"). If omitted, will prompt for selection.
 license: MIT
@@ -89,7 +89,7 @@ If commands are not documented, ask the user.
 - [x] Task 1
 - [x] Task 2
 
-All tasks complete. Ready to archive — run openspec-archive-change.
+All tasks complete. Ready to archive — run openspec-archive.
 ```
 
 If paused:

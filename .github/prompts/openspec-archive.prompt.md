@@ -3,7 +3,7 @@ description: Archive a completed change in the experimental workflow
 argument-hint: Change name to archive
 ---
 
-Use the **openspec-archive-change** skill to archive a completed change.
+Use the **openspec-archive** skill to archive a completed change.
 
 Pass the user's input (if any) as the change name. If no input is provided, the skill will prompt for selection.
 
