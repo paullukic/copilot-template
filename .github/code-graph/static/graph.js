@@ -6,12 +6,27 @@ const Graph = (() => {
 
   /* ---- Palettes ---- */
   const SVC_COLORS = id => {
-    if (id.startsWith("gateway-"))             return "#e07b39";
-    if (id.startsWith("common-") || id === "common-sdk") return "#9b59b6";
-    if (id.includes("worker"))                 return "#2a9d5c";
-    if (id.startsWith("cybernoc"))             return "#c0392b";
-    if (id.startsWith("template-") || id === "terraform" || id === "kubernetes") return "#5d7a8a";
-    return "#4a7fa5";
+    const lo = id.toLowerCase();
+    // Frontend groups
+    if (lo === "components" || lo === "ui")     return "#3498db";
+    if (lo === "hooks")                         return "#e67e22";
+    if (lo === "context" || lo === "store" || lo === "state") return "#9b59b6";
+    if (lo === "utils" || lo === "helpers" || lo === "lib") return "#1abc9c";
+    if (lo === "types" || lo === "constants")   return "#95a5a6";
+    if (lo === "styles")                        return "#e91e63";
+    if (lo === "api")                           return "#c0392b";
+    if (lo === "entity-forms" || lo === "forms") return "#2ecc71";
+    if (lo === "i18n" || lo === "messages")     return "#f39c12";
+    if (lo.startsWith("("))                     return "#e07b39";  // route groups
+    // Backend groups
+    if (lo.startsWith("gateway-"))              return "#e07b39";
+    if (lo.startsWith("common-") || lo === "common-sdk") return "#9b59b6";
+    if (lo.includes("worker"))                  return "#2a9d5c";
+    if (lo.startsWith("template-") || lo === "terraform" || lo === "kubernetes") return "#5d7a8a";
+    // Features / pages / routes — distinct hues by hash
+    const _hash = s => { let h=0; for(let i=0;i<s.length;i++) h=((h<<5)-h)+s.charCodeAt(i); return Math.abs(h); };
+    const FEATURE_HUES = ["#4a7fa5","#e07b39","#2a9d5c","#d4b43a","#c0392b","#7b68ee","#16a085","#d35400","#8e44ad","#27ae60"];
+    return FEATURE_HUES[_hash(lo) % FEATURE_HUES.length];
   };
   const EXT_COLORS = {
     java:"#4a7fa5",kt:"#7b68ee",scala:"#dc322f",xml:"#e07b39",yaml:"#d4b43a",yml:"#d4b43a",
@@ -520,6 +535,18 @@ const Graph = (() => {
     activeTypes,drawAllEdgesInView,clearEdges:()=>{clearEdges();draw();},deselect,
     onEdgeFilterChange,filterCurrentView,applySearch,panToNode,
     onSymTypeChange,onExcludeTestsChange,onExcludePomSpecChange,
+    svcColor:SVC_COLORS,
   };
 })();
-Panel.buildExtFilters();Graph.renderServiceView();
+Panel.buildExtFilters();
+// Build dynamic service/group legend from actual data
+(function(){
+  const el=document.getElementById("svc-legend-items");if(!el)return;
+  const svcs=graphData.services.sort((a,b)=>b.files-a.files);
+  for(const s of svcs){
+    const row=document.createElement("div");row.className="filter-row";
+    row.innerHTML='<span class="dot-swatch" style="background:'+Graph.svcColor(s.id)+'"></span><span class="filter-label">'+s.label+' <span style="color:#445;font-size:10px">('+s.files+')</span></span>';
+    el.appendChild(row);
+  }
+})();
+Graph.renderServiceView();

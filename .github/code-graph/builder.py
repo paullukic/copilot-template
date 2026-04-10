@@ -207,10 +207,14 @@ def _load_path_aliases(root: Path) -> list[tuple[str, str]]:
         if not cfg_path.exists():
             continue
         try:
-            # Strip comments (tsconfig allows them)
+            # Strip comments (tsconfig allows them) while preserving
+            # quoted strings that contain /*, //, etc. (e.g. "@/*": ["./src/*"])
             text = cfg_path.read_text(encoding="utf-8", errors="ignore")
-            text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
-            text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+            text = re.sub(
+                r'"(?:[^"\\]|\\.)*"|//.*?$|/\*.*?\*/',
+                lambda m: m.group() if m.group().startswith('"') else '',
+                text, flags=re.MULTILINE | re.DOTALL,
+            )
             cfg = json.loads(text)
         except (json.JSONDecodeError, OSError):
             continue

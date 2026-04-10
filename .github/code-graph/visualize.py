@@ -61,10 +61,60 @@ def generate_html(db_path: Path, output_path: Path) -> Path:
 # Data extraction (DB → JSON dict)
 # ---------------------------------------------------------------------------
 
+def _assign_group(parts: tuple[str, ...]) -> str:
+    """Assign a file to a logical group based on its path parts.
+
+    For multi-service repos (Java microservices, monorepos), returns parts[0].
+    Called only when smart grouping is active (single dominant top-level dir).
+    Produces groups like: (public), (system), components, hooks, features/calc, api, lib.
+    """
+    # Skip the dominant root dir (e.g. "src") and optional "app" dir
+    skip = 1
+    if len(parts) > skip and parts[skip] in ("app", "pages", "views"):
+        skip += 1
+
+    rest = parts[skip:]
+    if not rest:
+        return parts[0] if parts else "_root"
+
+    first = rest[0]
+
+    # Next.js route groups: (public), (system), (admin), etc.
+    if first.startswith("(") and first.endswith(")"):
+        # Use deeper segment if available: (system)/admin-profile -> admin-profile
+        if len(rest) > 1:
+            return rest[1]
+        return first
+
+    # api routes
+    if first == "api":
+        return "api"
+
+    # Common patterns: common/components, common/hooks, common/context, etc.
+    if first in ("common", "shared", "core"):
+        if len(rest) > 1:
+            return rest[1]  # components, hooks, context, utils, etc.
+        return first
+
+    # Features directory: features/calculator -> calculator
+    if first in ("features", "modules", "domains"):
+        if len(rest) > 1:
+            return rest[1]
+        return first
+
+    # lib, utils, helpers, config, styles, types at app level
+    if first in ("lib", "utils", "helpers", "config", "styles", "types",
+                 "services", "store", "state", "i18n", "messages"):
+        return first
+
+    # Fallback: use the first meaningful segment
+    return first
+
+
 def _extract_data(db_path: Path) -> dict:
     conn = sqlite3.connect(db_path)
 
-    # ---- File nodes ----
+    # ---- File nodes (initial grouping by top-level dir) ----
     file_nodes: dict[str, dict] = {}
     for nid, name, file in conn.execute(
         "SELECT id, name, file FROM nodes WHERE kind='file'"
@@ -76,6 +126,33 @@ def _extract_data(db_path: Path) -> dict:
             "file": file, "service": service,
             "ext": Path(file).suffix.lstrip(".").lower(),
         }
+
+    # ---- Smart grouping: split dominant single-service into sub-groups ----
+    if file_nodes:
+        svc_counts: dict[str, int] = defaultdict(int)
+        for node in file_nodes.values():
+            svc_counts[node["service"]] += 1
+        total = len(file_nodes)
+        top_svc = max(svc_counts, key=svc_counts.get)  # type: ignore[arg-type]
+        # If one dir has >75% of files, re-group into logical sub-groups
+        if svc_counts[top_svc] / total > 0.75 and total > 20:
+            for node in file_nodes.values():
+                parts = Path(node["file"]).parts
+                if parts and parts[0] == top_svc:
+                    node["service"] = _assign_group(parts)
+
+            # Collapse tiny groups (<=2 files) into "_root"
+            grp_counts: dict[str, int] = defaultdict(int)
+            for node in file_nodes.values():
+                grp_counts[node["service"]] += 1
+            tiny = {g for g, c in grp_counts.items() if c <= 2}
+            # Don't collapse groups that have meaningful names
+            _keep = {"api", "i18n", "context", "store", "state", "styles", "types", "messages"}
+            tiny -= _keep
+            if tiny:
+                for node in file_nodes.values():
+                    if node["service"] in tiny:
+                        node["service"] = "_root"
 
     # ---- Reverse index: filepath → file-node ID ----
     file_to_fid: dict[str, str] = {v["file"]: k for k, v in file_nodes.items()}
@@ -93,6 +170,48 @@ def _extract_data(db_path: Path) -> dict:
             symbols_by_file[fid].append({"id": nid, "kind": kind, "name": name, "line": start_line})
 
     all_node_ids = set(file_nodes) | set(symbol_nodes)
+
+    # ---- Smart labels: use primary symbol name for generic filenames ----
+    _GENERIC_NAMES = frozenset({
+        "index.tsx", "index.ts", "index.jsx", "index.js",
+        "page.tsx", "page.ts", "page.jsx", "page.js",
+        "layout.tsx", "layout.ts", "route.tsx", "route.ts",
+        "mod.rs", "__init__.py",
+    })
+    # Priority: class/interface > PascalCase function > first function > parent dir
+    for fid, node in file_nodes.items():
+        basename = node["label"]
+        syms = symbols_by_file.get(fid, [])
+        if not syms and basename in _GENERIC_NAMES:
+            # No symbols — use parent directory name
+            parent = Path(node["file"]).parent.name
+            if parent and parent not in (".", ""):
+                node["label"] = parent
+            continue
+        if not syms:
+            continue
+        # Find best symbol to use as label
+        best = None
+        for s in syms:
+            if s["kind"] in ("class", "interface", "enum"):
+                best = s["name"]
+                break
+        if not best:
+            # PascalCase function = likely a component
+            for s in syms:
+                if s["kind"] in ("function", "method") and s["name"][0:1].isupper():
+                    best = s["name"]
+                    break
+        if best and basename in _GENERIC_NAMES:
+            node["label"] = best
+        elif best and basename.endswith((".tsx", ".jsx")):
+            # Even non-generic .tsx files benefit from component name
+            # Only override if the symbol name is more descriptive
+            stem = Path(basename).stem.replace("-", "").replace("_", "").lower()
+            sym_lower = best.lower()
+            # If filename is just a kebab-case version of the symbol, keep symbol
+            if stem != sym_lower:
+                node["label"] = best
 
     # ---- File-level edges ----
     FILE_EDGE_TYPES = ("depends_on", "tests_for", "inherits", "implements", "calls")
@@ -284,13 +403,8 @@ _SHELL = r"""<!DOCTYPE html>
     <div id="ext-filters"></div>
 
     <div id="svc-legend">
-      <div class="sec-title">Services</div>
-      <div class="filter-row"><span class="dot-swatch" style="background:#4a7fa5"></span><span class="filter-label">*-service / other</span></div>
-      <div class="filter-row"><span class="dot-swatch" style="background:#e07b39"></span><span class="filter-label">gateway-*</span></div>
-      <div class="filter-row"><span class="dot-swatch" style="background:#9b59b6"></span><span class="filter-label">common-* / sdk</span></div>
-      <div class="filter-row"><span class="dot-swatch" style="background:#2a9d5c"></span><span class="filter-label">*-worker*</span></div>
-      <div class="filter-row"><span class="dot-swatch" style="background:#c0392b"></span><span class="filter-label">cybernoc*</span></div>
-      <div class="filter-row"><span class="dot-swatch" style="background:#5d7a8a"></span><span class="filter-label">template-* / infra</span></div>
+      <div class="sec-title">Groups</div>
+      <div id="svc-legend-items"></div>
     </div>
 
     <div id="file-legend" style="display:none">

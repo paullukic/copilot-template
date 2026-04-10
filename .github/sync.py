@@ -137,6 +137,43 @@ def sync_project(project: dict) -> bool:
     return True
 
 
+def _is_wsl_path(path: Path) -> bool:
+    """Detect if a path lives on a WSL filesystem."""
+    s = str(path)
+    return s.startswith("\\\\wsl") or s.startswith("//wsl")
+
+
+def _wsl_native_path(path: Path) -> str:
+    """Convert a Windows-accessible WSL path to its native Linux path.
+
+    \\\\wsl.localhost\\Ubuntu\\home\\paul\\project -> /home/paul/project
+    //wsl.localhost/Ubuntu/home/paul/project   -> /home/paul/project
+    """
+    s = str(path).replace("\\", "/")
+    # Strip //wsl.localhost/Distro or //wsl$/Distro prefix
+    parts = s.split("/")
+    # Find the distro name (first non-empty segment after wsl.localhost or wsl$)
+    idx = None
+    for i, p in enumerate(parts):
+        if p.lower() in ("wsl.localhost", "wsl$"):
+            idx = i + 1  # distro name
+            break
+    if idx is not None and idx < len(parts):
+        return "/" + "/".join(parts[idx + 1:])
+    return s
+
+
+def _wsl_distro(path: Path) -> str:
+    """Extract the WSL distro name from a path."""
+    s = str(path).replace("\\", "/")
+    parts = s.split("/")
+    for i, p in enumerate(parts):
+        if p.lower() in ("wsl.localhost", "wsl$"):
+            if i + 1 < len(parts):
+                return parts[i + 1]
+    return "Ubuntu"
+
+
 def _rebuild_graph(project_path: Path) -> None:
     uv = _find_uv()
     server = project_path / ".github" / "code-graph" / "server.py"
@@ -144,6 +181,34 @@ def _rebuild_graph(project_path: Path) -> None:
 
     if not server.exists():
         log.warning("SKIP graph rebuild - server.py not found in %s", project_path)
+        return
+
+    # WSL paths need to run natively inside WSL to avoid SQLite locking issues
+    if _is_wsl_path(project_path):
+        distro = _wsl_distro(project_path)
+        native = _wsl_native_path(project_path)
+        native_server = native + "/.github/code-graph/server.py"
+        log.info("BUILD graph (WSL %s)...", distro)
+
+        for flag, label in [("--build", "graph.db"), ("--visualize", "graph.html")]:
+            t0 = time.perf_counter()
+            result = subprocess.run(
+                ["wsl", "-d", distro, "--", "bash", "-c",
+                 f"cd {native} && python3 {native_server} {flag}"],
+                capture_output=True, text=True,
+            )
+            elapsed = time.perf_counter() - t0
+            if result.returncode != 0:
+                log.error("%s failed (%.2fs):\n%s", label, elapsed, result.stderr.strip())
+                if flag == "--build":
+                    return  # skip visualize if build failed
+            else:
+                if flag == "--build":
+                    db = project_path / ".code-graph" / "graph.db"
+                    size = f"{db.stat().st_size // 1024}KB" if db.exists() else "?"
+                    log.info("%s built: %s in %.2fs", label, size, elapsed)
+                else:
+                    log.info("%s generated in %.2fs", label, elapsed)
         return
 
     if uv and reqs.exists():
