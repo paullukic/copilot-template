@@ -1,12 +1,13 @@
 Diagnose the bug or build error below. Find the root cause with minimal investigation, then apply the smallest possible fix.
 
-## Phase 0 — Orient with Code-Graph (before reading any file)
+## Phase 0 — Orient with Code-Graph (MANDATORY — non-negotiable)
 
-Call `get_minimal_context(task="debug <symptom>")` and `detect_changes()`.
-- If they succeed: check `detect_changes()` risk scores first — recent high-risk changes are the most likely culprit. Use the returned file list to focus investigation.
-- If they fail or graph is unavailable: proceed immediately — do not block.
+**Before reading any file or running any search**, this is the HARD RULE — code-graph first, no exceptions:
+1. Call `get_minimal_context(task="debug <symptom>")` then `detect_changes()`. ALWAYS start here. Use `detect_changes()` risk scores first — recent high-risk changes are the most likely culprit. Use the returned file list to focus investigation.
+2. Fall back to `sqlite3 .code-graph/graph.db` ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+3. Fall back to standard search/read tools ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
 
-When tracing call chains, use `query_graph("callers_of", fn)` and `query_graph("callees_of", fn)` before reading files.
+"Slow", "unwieldy", "it's a simple bug" are NOT valid reasons to bypass. When tracing call chains use `query_graph("callers_of", fn)` and `query_graph("callees_of", fn)` before reading files. Validate every hypothesis directly in source regardless of graph output.
 
 ## Protocol
 

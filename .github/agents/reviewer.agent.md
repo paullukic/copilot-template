@@ -38,14 +38,14 @@ Before reviewing, always gather:
 2. **Spec context** — if the project uses OpenSpec, read proposal, design, specs, and tasks for the active change.
 3. **Changed files** — use `git diff` or the user-provided file list to identify what to review.
 
-## Step 0 — Orient with Code-Graph (mandatory attempt — strict fallback chain)
+## Step 0 — Orient with Code-Graph (MANDATORY — non-negotiable)
 
-**Before reading any file**, follow this order:
-1. Call `detect_changes()` then `get_review_context(files=[...changed files...])`. If the tools succeed: use the returned file set and risk scores to drive the review. Skip broad grepping — the graph already knows what's affected.
-2. If MCP tools are unavailable or return errors: try `sqlite3 .code-graph/graph.db` directly to query affected nodes and edges.
-3. If both MCP and sqlite3 fail or return no results: proceed with the standard manifest-driven flow below.
+**Before reading any file or running any search**, this is the HARD RULE — code-graph first, no exceptions:
+1. Call `detect_changes()` then `get_review_context(files=[...changed files...])`. ALWAYS start here. Use the returned file set and risk scores to drive the review; skip broad grepping — the graph already knows what's affected.
+2. `sqlite3 .code-graph/graph.db` — fall back ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+3. Standard manifest-driven flow below — fall back ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
 
-Never skip to step 2 or 3 without attempting the previous step first.
+The only valid reason to bypass code-graph is that it is genuinely not present. "Slow", "unwieldy", "less convenient", "I already know the file", or "it's a simple lookup" are NOT valid reasons.
 
 Additional graph queries when tracing:
 - `query_graph("importers_of", file)` — find all consumers of a changed export

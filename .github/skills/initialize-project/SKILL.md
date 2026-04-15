@@ -79,6 +79,9 @@ Copy files from the copilot-template repo to the target project. Only copy what'
 **For Claude Code:**
 - `CLAUDE.md`
 - `.claude/commands/project/` (all command files EXCEPT `initialize.md`)
+- `.claude/hooks/` (all hook scripts — block-generated, log-bash, report-graph, warn-scope)
+- `.claude/settings.json` (wires the hooks into Claude Code lifecycle events)
+- Do NOT copy `.claude/settings.local.json` — that's per-machine personal overrides
 
 **For both:** all of the above.
 
@@ -310,25 +313,15 @@ touch "$HOME/.config/git/ignore"
 
 ## Step 7: Agent references (when code-graph is enabled)
 
-The copied agent files already include a mandatory "Step 0 — Orient with Code-Graph" section.
-Verify it is present in the target project by checking `reviewer.agent.md` for the text `Step 0 — Orient with Code-Graph`.
-If missing (e.g. the user had older agent files and chose Skip), add the following block near the top of each agent file, before the main workflow steps:
+The copied agent files already include a mandatory "Step 0 — Orient with Code-Graph" section with HARD-RULE wording (code-graph first, non-negotiable, only fall back when the DB is genuinely absent).
 
-```
-## Step 0 — Orient with Code-Graph (mandatory attempt)
+Verify it is present in the target project by grepping each agent file for the literal string `MANDATORY — non-negotiable`:
 
-**Before reading any file**, call:
-```
-detect_changes()
-get_review_context(files=[...changed files...])
+```bash
+grep -L "MANDATORY — non-negotiable" <target>/.github/agents/*.agent.md
 ```
 
-If the tool calls succeed: use the returned file set and risk scores to drive the review. Skip broad grepping — the graph already knows what's affected.
-
-If the tool calls fail or the graph is unavailable: proceed with the standard manifest-driven flow below. Do not block on graph availability — fall back immediately and continue.
-
-Verify every finding from the current working tree by reading the file regardless of graph output.
-```
+Files returned (missing the marker) need the block restored — copy the Step 0 block from the matching file in `copilot-template/.github/agents/` verbatim. Do not improvise the wording; the literal HARD RULE phrasing is what enforces the rule.
 
 ## Step 8: Register in projects.json
 

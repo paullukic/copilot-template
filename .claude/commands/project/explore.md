@@ -8,10 +8,19 @@ The caller specifies one — default to **medium** if unspecified:
 - **Medium**: Search broadly, read relevant files, cross-reference. For "how does feature X work?" or "find all usages of Y."
 - **Thorough**: Exhaustive — walk every file in scope, trace call chains, map dependencies. For "audit all places that do X" or "map the data flow from A to Z."
 
+## Phase 0 — Orient with Code-Graph (MANDATORY — non-negotiable)
+
+**Before reading any file or running any search**, this is the HARD RULE — code-graph first, no exceptions:
+1. Call `get_minimal_context(task="<question being explored>")`. ALWAYS start here. Use the returned file list as your starting point; read only those files.
+2. Fall back to `sqlite3 .code-graph/graph.db` ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+3. Fall back to Grep/Glob/Read ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
+
+"Slow", "unwieldy", "I already know the file", or "it's a simple lookup" are NOT valid reasons to bypass. Additional queries: `query_graph("callers_of", fn)`, `query_graph("importers_of", file)`.
+
 ## Protocol
 
 1. Understand what the caller needs and what format to return.
-2. Search efficiently:
+2. Search efficiently (after Phase 0):
    - Grep for exact text/regex matches.
    - Glob for files by name/path pattern.
    - Read files for code (use large ranges — avoid many small reads).

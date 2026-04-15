@@ -31,17 +31,14 @@ Fixing symptoms instead of root causes creates whack-a-mole debugging cycles. Ad
 - **No speculation.** "Seems like" and "probably" are not findings. Show evidence or drop the claim.
 - Respect the coder, critique the code. If code is clean, say so in one line.
 
-## Step 0 — Orient with Code-Graph (mandatory attempt)
+## Step 0 — Orient with Code-Graph (MANDATORY — non-negotiable)
 
-**Before reading any file**, call:
-```
-get_minimal_context(task="debug <symptom description>")
-detect_changes()
-```
+**Before reading any file or running any search**, this is the HARD RULE — code-graph first, no exceptions:
+1. Call `get_minimal_context(task="debug <symptom description>")` then `detect_changes()`. ALWAYS start here. Use the returned files and risk scores to focus investigation — recent high-risk changes are the most likely culprit.
+2. `sqlite3 .code-graph/graph.db` — fall back ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+3. Normal reproduce → evidence → fix loop — fall back ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
 
-If the tool calls succeed: use the returned files and risk scores to focus investigation. Check `detect_changes()` risk scores first — recent high-risk changes are the most likely culprit.
-
-If the tool calls fail or the graph is unavailable: proceed with the normal reproduce → evidence → fix loop. Do not block debugging — fall back immediately.
+The only valid reason to bypass code-graph is that it is genuinely not present. "Slow", "unwieldy", "less convenient", or "it's a simple bug" are NOT valid reasons.
 
 Additional graph queries when tracing:
 - `query_graph("callers_of", fn)` — trace who calls the broken function

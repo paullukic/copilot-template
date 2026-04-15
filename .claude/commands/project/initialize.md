@@ -17,10 +17,10 @@ The full procedure is in `.github/skills/initialize-project/SKILL.md`. Follow th
 2. **Detect tech stack** — Read the target project's manifest files (package.json, pom.xml, go.mod, Cargo.toml, pyproject.toml, tsconfig.json, etc.) and `src/` structure. Extract language, framework, ORM, testing, build tool, linter, commands, and project structure. Present findings and ask the user to confirm before proceeding.
 
 3. **Copy template files** — Copy only what's relevant to the selected tools:
-   - Claude Code: `CLAUDE.md`, `.claude/commands/project/` (all except `initialize.md`)
+   - Claude Code: `CLAUDE.md`, `.claude/commands/project/` (all except `initialize.md`), `.claude/hooks/` (all scripts), `.claude/settings.json`
    - VS Code Copilot: `.github/copilot-instructions.md`, `.github/agents/`, `.github/skills/`, `.github/prompts/`, `.github/instructions/`, `AGENTS.md`
    - Always: `openspec/config.yaml`
-   - Do NOT copy `node_modules/`, `.omc/`, or `settings.local.json`
+   - Do NOT copy `node_modules/`, `.omc/`, or `.claude/settings.local.json`
    - Ask before overwriting any existing file (overwrite / skip / section-by-section)
 
 4. **Fill placeholders** — Replace all `_TBD_` and `<!-- FILL: ... -->` markers using the detected stack info. Delete sections the user said to skip. Add project-specific rules.

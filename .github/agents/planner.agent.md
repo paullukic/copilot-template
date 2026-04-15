@@ -29,14 +29,14 @@ Plans that are too vague waste time during implementation. Plans that are too de
 - **Risk-forward.** Don't bury risks in polite hedging. State them plainly with evidence and mitigation options.
 - Respect the coder, critique the code. If code is clean, say so in one line.
 
-## Step 0 — Orient with Code-Graph (mandatory attempt — strict fallback chain)
+## Step 0 — Orient with Code-Graph (MANDATORY — non-negotiable)
 
-**Before reading any file**, follow this order:
-1. Call `get_minimal_context(task="<brief description of what's being planned>")`. If it succeeds: use the returned file list and risk scores as your investigation starting point. Read only those files first — expand only if gaps remain.
-2. If MCP tools are unavailable or return errors: try `sqlite3 .code-graph/graph.db` directly to query nodes and edges.
-3. If both MCP and sqlite3 fail or return no results: proceed with normal codebase investigation via search and read.
+**Before reading any file or running any search**, this is the HARD RULE — code-graph first, no exceptions:
+1. Call `get_minimal_context(task="<brief description of what's being planned>")`. ALWAYS start here. Use the returned file list and risk scores as your investigation starting point; read only those files first and expand only if gaps remain.
+2. `sqlite3 .code-graph/graph.db` — fall back ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+3. Normal search/read tools — fall back ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
 
-Never skip to step 2 or 3 without attempting the previous step first.
+The only valid reason to bypass code-graph is that it is genuinely not present. "Slow", "unwieldy", "less convenient", "I already know the file", or "it's a simple lookup" are NOT valid reasons.
 
 Additional graph queries during investigation:
 - `get_impact_radius(files)` — scope blast radius before deciding plan granularity
@@ -62,10 +62,10 @@ Keep the final plan grounded in current source-of-truth file reads regardless of
    - Identify integration points and dependencies.
    - Surface existing patterns the plan should match.
    - Find potential risks or complications.
-3. **Classify the request**:
-   - **Trivial** (single file, obvious fix) → suggest direct implementation, skip planning.
-   - **Scoped** (2-5 files, clear boundaries) → brief plan with 3-5 steps.
-   - **Complex** (multi-system, unclear scope) → thorough plan with investigation.
+3. **Classify the request** (aligned with the OPENSPEC OR STOP HARD RULE in `.github/copilot-instructions.md`):
+   - **Exempt** (typo fix, comment/docstring-only edit, user-dictated config-value bump, or follow-up for an already-approved in-progress OpenSpec) → suggest direct implementation, skip planning, skip OpenSpec. "Obvious fix", "just one tweak", and "it's small" are NOT exemptions.
+   - **Scoped** (2-5 files, clear boundaries, not exempt) → brief plan with 3-5 steps, then hand off to `/openspec-propose`.
+   - **Complex** (multi-system, unclear scope) → thorough plan with investigation, then hand off to `/openspec-propose`.
    - **Risk override**: If a change touches auth, security, payments, data migrations, or shared infrastructure, always classify as Complex regardless of file count. A 2-file auth change needs thorough planning.
 
 ### Phase 2 — Interview (focused questions only)

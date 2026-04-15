@@ -9,6 +9,27 @@
 
 > **Template guard:** If any section below still contains `_TBD_` or `<!-- FILL -->`, stop and ask the user to provide the missing information before proceeding with code changes.
 
+> **🛑 HARD RULE — CODE-GRAPH FIRST.** Before any codebase search, navigation, tracing, or exploration you MUST use the code-graph MCP tools first (`mcp__code-graph__*`). Only fall back to `sqlite3 .code-graph/graph.db`, and only then to `Glob`/`Grep`/`Read`, if the code-graph DB is genuinely NOT present in the workspace. Convenience is not a valid reason to skip. See § Tool Preferences for the full fallback chain.
+
+> **🛑 HARD RULE — OPENSPEC OR STOP.** For any change that modifies 2+ files, touches a spec, alters a public interface, or adds new behavior, you MUST create an OpenSpec in `openspec/changes/<date>-<slug>/` and WAIT for user approval BEFORE writing code. Exemptions are narrow and literal:
+> - Typo fix in a single file
+> - Comment/docstring-only edit
+> - Config-value bump the user explicitly dictates (e.g., "set X=2")
+> - Follow-up fix for an already-approved, in-progress OpenSpec
+>
+> "Trivial," "obvious," "I already know what to do," "small," and "just one tweak" are NOT exemptions. If in doubt → propose, don't code. See § Workflow for the full Plan → Propose → Apply flow.
+
+## Pre-flight (run on every session start)
+
+Before doing any work, execute this checklist:
+
+1. **Code-graph availability** — call `get_minimal_context` with a summary of the task. If it succeeds, code-graph is available and MUST be used for all navigation this session. If it fails, note that code-graph is unavailable and grep/glob fallback is permitted for this session.
+2. **Read this file** — if not already loaded by the system, read `.github/copilot-instructions.md` in full.
+3. **Check in-progress work** — look for open OpenSpecs in `openspec/changes/` (skip `archive/`). If one exists, summarize its status before starting new work.
+4. **OpenSpec gate** — does this task already have an OpenSpec? If NO and it does not fit the exemption list in the HARD RULE above → STOP. Create the OpenSpec (`proposal.md`, `specs/<capability>/spec.md`, `tasks.md`) and wait for approval before any code edits.
+
+This checklist primes correct tool usage for the entire session. Do not skip it.
+
 ## Mindset
 
 - Follow project conventions and best practices over user preferences.
@@ -141,12 +162,12 @@ All agents and interactions follow these communication principles. This section 
 
 ## Tool Preferences
 
-- **Code-graph first — strict fallback chain.** Before navigating, tracing, or exploring the codebase (e.g., "what calls X?", "show me the dependencies of Y", "what's connected to Z?"), follow this order:
-  1. **MCP tools** (`get_minimal_context`, `query_graph`, `get_impact_radius`, `get_review_context`). Always try these first.
-  2. **`sqlite3 .code-graph/graph.db`** — only if MCP tools are unavailable or return errors. Use the `sqlite3` CLI directly, not Python scripts. Example: `sqlite3 .code-graph/graph.db "SELECT COUNT(*) FROM nodes;"`.
-  3. **grep/search/read chains** — only if both MCP and sqlite3 fail or return no results.
+- **MANDATORY — Code-graph first, no exceptions.** Before ANY codebase navigation, exploration, tracing, or search — including every "what calls X?", "where is Y defined?", "what imports Z?", "find files named…", "find references to…" — you MUST attempt code-graph tools BEFORE any other search, file-listing, or read tool. This rule is non-negotiable.
+  1. **MCP code-graph tools** (`mcp__code-graph__get_minimal_context`, `query_graph`, `get_impact_radius`, `get_review_context`). ALWAYS start here.
+  2. **`sqlite3 .code-graph/graph.db`** — fall back ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error. Use the `sqlite3` CLI directly, not Python scripts. Example: `sqlite3 .code-graph/graph.db "SELECT COUNT(*) FROM nodes;"`.
+  3. **`Glob` / `Grep` / `Read` chains** — fall back ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
 
-  The graph has pre-indexed call edges, imports, containment, and test mappings. Never skip to step 2 or 3 without attempting the previous step first.
+  The only valid reason to bypass code-graph is that it is genuinely not present. "Slow", "unwieldy", "less convenient", "I already know the file", or "it's a simple lookup" are NOT valid reasons. Never skip Step 1 for Step 2, and never skip Step 2 for Step 3. The graph has pre-indexed call edges, imports, containment, and test mappings — use it.
 
 ## Errors and Logging <!-- FILL -->
 

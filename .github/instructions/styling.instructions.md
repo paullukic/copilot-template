@@ -5,6 +5,8 @@ applyTo: "**/*.{css,scss,module.css,module.scss}"
 
 # Styling Conventions
 
+> **Template guard:** This file is a stub — all rules are commented out. Uncomment and customize the rules that apply to your project before relying on this file, or delete it if the project does not use styling conventions. Agents loading this file while it is still stubbed should flag it to the user.
+
 <!-- FILL: Uncomment and customize the rules that apply to your project. Delete the rest. -->
 
 <!--

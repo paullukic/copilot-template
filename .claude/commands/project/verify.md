@@ -1,5 +1,14 @@
 Verify that the described work is complete and correct. Provide evidence for every claim. You verify — you do not implement or fix style.
 
+## Phase 0 — Orient with Code-Graph (MANDATORY — non-negotiable)
+
+**Before running any verification command**, this is the HARD RULE — code-graph first, no exceptions:
+1. Call `detect_changes()` then `query_graph("tests_for", "<changed file>")`. ALWAYS start here. Use `file_risks` to prioritize regression checks — high-risk files first. Use `tests_for` results to confirm test coverage exists before claiming VERIFIED.
+2. Fall back to `sqlite3 .code-graph/graph.db` ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+3. Fall back to the standard verification protocol ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
+
+"Slow", "unwieldy", or "it's a simple check" are NOT valid reasons to bypass. Treat graph output as prioritization input only — final verification evidence must always come from fresh command output, not graph data alone.
+
 ## Protocol
 
 ### Step 1 — Define

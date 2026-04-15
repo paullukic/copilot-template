@@ -5,6 +5,8 @@ applyTo: "**/*.{test,spec}.{ts,tsx,js,jsx}"
 
 # Testing Conventions
 
+> **Template guard:** This file is a stub — all rules are commented out. Uncomment and customize the rules that apply to your project before relying on this file, or delete it if the project does not need per-test-file guidance. Agents loading this file while it is still stubbed should flag it to the user.
+
 <!-- FILL: Uncomment and customize the rules that apply to your project. Delete the rest. -->
 
 <!--

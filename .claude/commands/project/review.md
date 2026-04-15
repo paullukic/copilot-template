@@ -1,12 +1,13 @@
 Review the changes in scope for spec compliance, convention violations, logic bugs, and architectural issues. You review — you do not author. Never edit files.
 
-## Phase 0 — Orient with Code-Graph (before reading any file)
+## Phase 0 — Orient with Code-Graph (MANDATORY — non-negotiable)
 
-Call `detect_changes()` and `get_review_context(files=[...changed files...])`.
-- If they succeed: use the returned file set and risk scores to drive the review. High-risk files first.
-- If they fail or graph is unavailable: proceed to Phase 1 immediately — do not block.
+**Before reading any file or running any search**, this is the HARD RULE — code-graph first, no exceptions:
+1. Call `detect_changes()` then `get_review_context(files=[...changed files...])`. ALWAYS start here. Use the returned file set and risk scores to drive the review. High-risk files first.
+2. Fall back to `sqlite3 .code-graph/graph.db` ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+3. Fall back to standard search/read tools ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
 
-When tracing consumers or write paths, use `query_graph("importers_of", file)` and `query_graph("callers_of", fn)` before grepping.
+"Slow", "unwieldy", "I already know the file", or "it's a small diff" are NOT valid reasons to bypass. When tracing consumers or write paths use `query_graph("importers_of", file)` and `query_graph("callers_of", fn)` before grepping. Every finding must still be verified from a fresh file read regardless of graph output.
 
 ## Phase 1 — Anchor & Scope
 

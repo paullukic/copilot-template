@@ -40,7 +40,7 @@ Manual setup: see [SETUP.md](SETUP.md). Prerequisites and visualizer: see [.gith
 
 ## Workflow
 
-Every non-trivial task follows this sequence. Trivial fixes skip it.
+Every task goes through the full sequence. The only exemptions are narrow and literal: typo fix in a single file, comment/docstring-only edit, user-dictated config-value bump, or follow-up for an already-approved in-progress OpenSpec. "Trivial", "obvious", "small", and "just one tweak" are NOT exemptions.
 
 ```mermaid
 flowchart LR
@@ -52,12 +52,13 @@ flowchart LR
     ARCHIVE["ARCHIVE\nMove to\narchive/"]
 
     PLAN --> PROPOSE --> APPLY --> QA --> REVIEW --> ARCHIVE
-    PLAN -. "Trivial fix" .-> APPLY
+    PLAN -. "Exempt fix" .-> APPLY
     APPLY -. "Build fail\n3-retry limit" .-> APPLY
 ```
 
 | Step | Claude Code | VS Code Copilot |
 |------|-------------|----------------|
+| Start a new ticket | `/project:new-ticket` | `new-ticket` prompt / skill |
 | Plan | `/project:plan` | `@Planner` |
 | Propose | `openspec-propose` skill | `openspec-propose` skill |
 | Apply | `openspec-apply` skill | `openspec-apply` skill |
@@ -66,6 +67,8 @@ flowchart LR
 | Debug | `/project:debug` | `@Debugger` |
 | Explore | `/project:explore` | `@Explore` |
 | Archive | `openspec-archive` skill | `openspec-archive` skill |
+
+`/project:new-ticket` is the recommended entry point when you paste a ticket, issue, or task description — it runs pre-flight, investigates the codebase, and hands off to `/project:plan` or the `openspec-propose` skill. Use the individual steps directly when you already know where you are in the workflow.
 
 OpenSpec changes live in `openspec/changes/<date>-<slug>/` with `proposal.md`, `specs/<capability>/spec.md`, and `tasks.md`. Completed changes move to `openspec/changes/archive/`.
 
@@ -81,7 +84,7 @@ There is no separate `@Implementer` — the agent that plans also implements.
 | **Verifier** | Evidence-based completion checks | Runs commands itself. PASS/FAIL/INCOMPLETE verdict. |
 | **Explore** | Fast read-only codebase Q&A | Quick / medium / thorough depth levels. |
 
-All agents try the code-graph first, fall back to grep/read if unavailable.
+All agents MUST call code-graph first — the rule is non-negotiable. Fallback to `sqlite3 .code-graph/graph.db`, and only then to grep/read, is permitted ONLY when the code-graph DB is genuinely absent from the workspace. Convenience is not a valid reason to skip.
 
 ## Claude Code Hooks
 
@@ -143,6 +146,8 @@ Template updates propagate to every registered project automatically.
 | `AGENTS.md` | |
 
 Sync output appends to `.github/sync.log`.
+
+**Migrations:** when a template update changes a user-owned file (`CLAUDE.md`, `.github/copilot-instructions.md`, `openspec/config.yaml`), sync skips it to preserve your customizations. Any such change is recorded in [MIGRATION.md](MIGRATION.md) with the exact text to apply by hand. Check that file after every `git pull` in copilot-template.
 
 ## Customization
 

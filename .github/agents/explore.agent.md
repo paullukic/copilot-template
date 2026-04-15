@@ -31,11 +31,11 @@ The caller specifies one of these — default to **medium** if unspecified:
 ## Protocol
 
 1. **Understand the question.** What specific information does the caller need? What format?
-2. **Attempt code-graph first — strict fallback chain (before reading any file):**
-   1. Call `get_minimal_context(task="<question being explored>")`. If it succeeds: use the returned file list as your starting point. Read only those files.
-   2. If MCP tools are unavailable or return errors: try `sqlite3 .code-graph/graph.db` directly (e.g., `SELECT * FROM nodes WHERE name LIKE '%Foo%';`).
-   3. If both MCP and sqlite3 fail or return no results: proceed with search and read.
-   Never skip to step 2 or 3 without attempting the previous step first.
+2. **Code-graph first — MANDATORY, non-negotiable (before reading any file):**
+   1. Call `get_minimal_context(task="<question being explored>")`. ALWAYS start here. Use the returned file list as your starting point; read only those files.
+   2. `sqlite3 .code-graph/graph.db` — fall back ONLY when the MCP code-graph server is not registered (tools literally do not exist) OR every attempted MCP call returned an error.
+   3. Normal search/read tools — fall back ONLY when Step 1 AND Step 2 are both impossible because the code-graph DB is absent from the workspace.
+   The only valid reason to bypass code-graph is that it is genuinely not present. "Slow", "unwieldy", "I already know the file", or "it's a simple lookup" are NOT valid reasons.
 3. **Search efficiently.** Use the right tool for the job:
    - Search file contents for exact text or regex matches
    - Search for files by name or path pattern
