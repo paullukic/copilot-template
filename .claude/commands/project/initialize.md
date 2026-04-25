@@ -18,8 +18,8 @@ The full procedure is in `.github/skills/initialize-project/SKILL.md`. Follow th
 
 3. **Copy template files** — Copy only what's relevant to the selected tools:
    - Claude Code: `CLAUDE.md`, `.claude/commands/project/` (all except `initialize.md`), `.claude/hooks/` (all scripts), `.claude/settings.json`
-   - VS Code Copilot: `.github/copilot-instructions.md`, `.github/agents/`, `.github/skills/`, `.github/prompts/`, `.github/instructions/`, `AGENTS.md`
-   - Always: `openspec/config.yaml`
+   - VS Code Copilot: `.github/agents/`, `.github/skills/`, `.github/prompts/`, `AGENTS.md`
+   - Always (shared by both tools): `.github/copilot-instructions.md`, `.github/instructions/`, `openspec/config.yaml`
    - Do NOT copy `node_modules/`, `.omc/`, or `.claude/settings.local.json`
    - Ask before overwriting any existing file (overwrite / skip / section-by-section)
 

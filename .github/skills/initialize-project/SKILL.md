@@ -19,8 +19,9 @@ Ask the user these questions one at a time (wait for each answer before proceedi
 1. **Target project path** — "What is the full path to the project you want to initialize?" (If provided as argument, use that.)
 2. **Which AI tools should I set up for?**
    - Claude Code (`CLAUDE.md`, `.claude/commands/`)
-   - VS Code Copilot (`.github/copilot-instructions.md`, `.github/agents/`, `.github/skills/`, `.github/prompts/`)
+   - VS Code Copilot (`.github/agents/`, `.github/skills/`, `.github/prompts/`, `AGENTS.md`)
    - Both (recommended default)
+   - Note: `.github/copilot-instructions.md` and `.github/instructions/` are always copied — both tools read them.
 3. **Any sections to skip entirely?** (e.g., i18n, API design, data layer) — optional, user can say "none"
 4. **Any additional project-specific coding/review rules?**
   - Ask for concise bullets (for example: mandatory architecture patterns, domain invariants, naming restrictions, module boundaries, logging/security constraints).
@@ -68,12 +69,15 @@ Present findings in a summary table and ask the user to confirm or correct befor
 
 Copy files from the copilot-template repo to the target project. Only copy what's relevant to the tools selected in Step 1.
 
+**Always copy (shared conventions used by both tools):**
+- `.github/copilot-instructions.md` (CLAUDE.md pre-flight + on-demand reads depend on this)
+- `.github/instructions/` (all instruction `.md` files — testing, styling, etc.)
+- `openspec/config.yaml` (create `openspec/` dir if needed)
+
 **For VS Code Copilot:**
-- `.github/copilot-instructions.md`
 - `.github/agents/` (all agent `.md` files)
 - `.github/skills/` (all skill directories including `initialize-project/` — the target project can use it to initialize other projects later)
 - `.github/prompts/` (all prompt `.md` files)
-- `.github/instructions/` (all instruction `.md` files)
 - `AGENTS.md`
 
 **For Claude Code:**
@@ -83,10 +87,7 @@ Copy files from the copilot-template repo to the target project. Only copy what'
 - `.claude/settings.json` (wires the hooks into Claude Code lifecycle events)
 - Do NOT copy `.claude/settings.local.json` — that's per-machine personal overrides
 
-**For both:** all of the above.
-
-**Always copy:**
-- `openspec/config.yaml` (create `openspec/` dir if needed)
+**For both:** all of the above (Always + VS Code + Claude Code lists).
 
 **Do NOT overwrite** existing files without asking. If a file exists, show both versions side by side (existing vs template) and ask the user how to proceed:
 - **Overwrite** — replace entirely with the template version
