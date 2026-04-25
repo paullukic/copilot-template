@@ -1,11 +1,11 @@
-{
+﻿{
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/report-graph.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/report-graph.py\""
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/log-bash.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log-bash.py\""
           }
         ]
       },
@@ -25,11 +25,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/block-generated.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-generated.py\""
           },
           {
             "type": "command",
-            "command": "python3 .claude/hooks/warn-scope.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/warn-scope.py\""
           }
         ]
       }

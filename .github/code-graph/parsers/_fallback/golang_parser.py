@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import register, nid, find_scope, brace_end
+from .. import register, nid, find_scope, brace_end
 
 STACK = "golang"
 EXTENSIONS = frozenset({".go"})

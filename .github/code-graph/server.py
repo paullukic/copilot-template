@@ -20,7 +20,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Configure logging early so builder output is visible during --build/--update
+# Configure logging early so builder output is visible during --build/--update.
+# MCP-server mode (stdio) reconfigures to file below — writing to stderr will
+# fill Windows' ~4KB pipe buffer (the host doesn't drain it) and block forever.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(name)s %(message)s",
@@ -31,11 +33,15 @@ logging.basicConfig(
 # Resolve repo root via git (works from any cwd after initialization)
 # ---------------------------------------------------------------------------
 
-_git = subprocess.run(
-    ["git", "rev-parse", "--show-toplevel"],
-    capture_output=True, text=True, check=False,
-)
-ROOT = Path(_git.stdout.strip()) if _git.returncode == 0 else Path.cwd()
+try:
+    _git = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=False,
+        stdin=subprocess.DEVNULL, timeout=5,
+    )
+    ROOT = Path(_git.stdout.strip()) if _git.returncode == 0 else Path.cwd()
+except (subprocess.TimeoutExpired, OSError):
+    ROOT = Path.cwd()
 DB_PATH = ROOT / ".code-graph" / "graph.db"
 
 # Ensure builder.py (sibling file) is importable
@@ -66,6 +72,21 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------
 # MCP server (only reached when running as server, not --build/--update)
 # ---------------------------------------------------------------------------
+
+# Redirect logging to a file. The MCP host pipes stdio for protocol traffic;
+# stderr is unread and its OS pipe buffer fills (~4KB on Windows), blocking
+# the next log call indefinitely and hanging the server.
+_log_path = ROOT / ".code-graph" / "server.log"
+_log_path.parent.mkdir(parents=True, exist_ok=True)
+_root_logger = logging.getLogger()
+for _h in list(_root_logger.handlers):
+    _root_logger.removeHandler(_h)
+_file_handler = logging.FileHandler(_log_path, encoding="utf-8")
+_file_handler.setFormatter(logging.Formatter(
+    "%(asctime)s %(name)s %(message)s", datefmt="%H:%M:%S"
+))
+_root_logger.addHandler(_file_handler)
+_root_logger.setLevel(logging.INFO)
 
 import sqlite3
 
@@ -238,11 +259,15 @@ def detect_changes(base: str = "HEAD") -> dict:
         detect_changes()                  # changes since last commit
         detect_changes("origin/main")     # changes vs main branch
     """
-    result = subprocess.run(
-        ["git", "diff", "--name-only", base],
-        capture_output=True, text=True, cwd=ROOT,
-    )
-    changed_files = [f for f in result.stdout.strip().splitlines() if f]
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", base],
+            capture_output=True, text=True, cwd=ROOT,
+            stdin=subprocess.DEVNULL, timeout=5,
+        )
+        changed_files = [f for f in result.stdout.strip().splitlines() if f]
+    except (subprocess.TimeoutExpired, OSError):
+        changed_files = []
     if not changed_files:
         return {"changed_files": [], "affected_nodes": [], "risk_score": 0.0,
                 "message": "No changes detected."}
@@ -428,16 +453,28 @@ def get_minimal_context(task: str = "") -> dict:
         "files": conn.execute("SELECT COUNT(*) FROM nodes WHERE kind='file'").fetchone()[0],
     }
 
-    # Quick risk from uncommitted changes
+    # Quick risk from uncommitted changes.
+    # subprocess: stdin=DEVNULL + timeout so git can't block on stdin/pager.
     risk = "unknown"
-    git_result = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD"],
-        capture_output=True, text=True, cwd=ROOT,
-    )
-    changed = [f for f in git_result.stdout.strip().splitlines() if f]
-    if changed:
+    changed: list[str] = []
+    try:
+        git_result = subprocess.run(
+            ["git", "diff", "--name-only", "HEAD"],
+            capture_output=True, text=True, cwd=ROOT,
+            stdin=subprocess.DEVNULL, timeout=5,
+        )
+        changed = [f for f in git_result.stdout.strip().splitlines() if f]
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+
+    if not changed:
+        risk = "clean"
+    elif stats["edges"] == 0:
+        # No dep edges yet — radius BFS would just count seeds. Skip the work.
+        risk = "low"
+    else:
         total_radius = 0
-        for f in changed[:20]:  # cap to avoid slow queries
+        for f in changed[:20]:
             _, r = _impact_radius_internal([f])
             total_radius += r
         if total_radius > 20:
@@ -446,8 +483,6 @@ def get_minimal_context(task: str = "") -> dict:
             risk = "medium"
         else:
             risk = "low"
-    elif not changed:
-        risk = "clean"
 
     conn.close()
 

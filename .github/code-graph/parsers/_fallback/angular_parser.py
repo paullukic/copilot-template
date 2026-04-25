@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import register, nid
+from .. import register, nid
 
 STACK = "angular"
 EXTENSIONS = frozenset({".ts", ".tsx", ".js", ".jsx"})

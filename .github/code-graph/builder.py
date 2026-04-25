@@ -85,6 +85,12 @@ _IGNORE_DIRS = frozenset({
     "__pycache__", "target", "dist", "build", ".gradle",
     ".idea", ".vscode", "coverage", ".code-graph",
     ".next", ".nuxt", "out", ".turbo", ".pytest_cache",
+    # PHP/Laravel
+    "vendor", "bootstrap/cache",
+    # Ruby/Rails
+    "tmp", "log",
+    # Misc cache / generated
+    "Pods", "DerivedData", ".bundle", ".cache",
 })
 
 _TEST_MARKERS = ("test", "spec", "__tests__", "_test", "_spec")
@@ -93,6 +99,15 @@ _TEST_MARKERS = ("test", "spec", "__tests__", "_test", "_spec")
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _ext_for(path: Path) -> str:
+    """Return the parser key for a file. Composite suffixes (e.g. .blade.php) win
+    over plain suffixes so dedicated parsers can target them."""
+    name = path.name.lower()
+    if name.endswith(".blade.php"):
+        return ".blade.php"
+    return path.suffix.lower()
 
 
 def _walk(root: Path, extensions: frozenset[str]) -> Generator[Path, None, None]:
@@ -104,7 +119,7 @@ def _walk(root: Path, extensions: frozenset[str]) -> Generator[Path, None, None]
         ]
         for f in files:
             p = Path(dp) / f
-            if p.suffix.lower() in extensions:
+            if _ext_for(p) in extensions:
                 yield p
 
 
@@ -167,6 +182,9 @@ def _is_npm_import(imp: str, aliases: list[tuple[str, str]]) -> bool:
     # Java/Kotlin/Scala qualified names use dots, not slashes — never npm
     if re.match(r'^[a-z][a-z0-9]*\.', imp) and '/' not in imp:
         return False
+    # PHP / .NET / PSR-4 namespaces: PascalCase dotted segments — never npm
+    if '.' in imp and '/' not in imp and imp[:1].isupper():
+        return False
     if imp.endswith(".*"):
         return False
     if imp.startswith(".") or imp.startswith("/"):
@@ -189,6 +207,9 @@ def _is_npm_import(imp: str, aliases: list[tuple[str, str]]) -> bool:
     first = imp.split("/")[0]
     if first in _NPM_PREFIXES:
         return True
+    # PascalCase bare identifier (e.g. PHP `Foo::class` ref) — treat as local class
+    if "/" not in imp and "." not in imp and imp[:1].isupper():
+        return False
     # Heuristic: no path separators and no file extension -> likely npm
     if "/" not in imp and not any(imp.endswith(e) for e in (".ts", ".tsx", ".js", ".jsx", ".css", ".scss")):
         return True
@@ -572,8 +593,8 @@ def build(root: Path) -> Path:
 
     with _timed("parse files"):
         for path in _walk(root, extensions):
-            rel = str(path.relative_to(root))
-            ext = path.suffix.lower()
+            rel = str(path.relative_to(root)).replace("\\", "/")
+            ext = _ext_for(path)
             parser = parsers.get(ext)
             if parser:
                 parser(path, rel, all_nodes, all_edges)
@@ -641,7 +662,7 @@ def update(root: Path) -> tuple[Path, list[str]]:
     changed: list[str] = []
 
     for path in _walk(root, extensions):
-        rel = str(path.relative_to(root))
+        rel = str(path.relative_to(root)).replace("\\", "/")
         current_rels.add(rel)
         if stored.get(rel) != _sha1_file(path):
             changed.append(rel)
@@ -676,7 +697,7 @@ def update(root: Path) -> tuple[Path, list[str]]:
         path = root / rel
         if not path.exists():
             continue
-        ext = path.suffix.lower()
+        ext = _ext_for(path)
         parser = parsers.get(ext)
         if parser:
             parser(path, rel, all_nodes, all_edges)

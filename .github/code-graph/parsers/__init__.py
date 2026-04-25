@@ -73,7 +73,7 @@ def get_parsers(stacks: set[str]) -> dict[str, ParseFn]:
         # language-family stacks
         "java", "dotnet",
         # framework-specific stacks (highest priority — override language parsers)
-        "react", "angular", "vue", "svelte",
+        "react", "angular", "vue", "svelte", "blade",
     ]
 
     ext_map: dict[str, ParseFn] = {}
@@ -93,7 +93,7 @@ def get_parsers(stacks: set[str]) -> dict[str, ParseFn]:
                 ext_map.setdefault(ext, entry["parse"])
 
     # Tree-sitter overrides all regex parsers for any extension it supports.
-    # Runs unconditionally — ts_parser only registers extensions whose
+    # Runs unconditionally — tree_sitter_parser only registers extensions whose
     # language packages are actually installed, so uninstalled languages
     # keep their regex parser in ext_map.
     if "tree_sitter" in _REGISTRY:
@@ -186,6 +186,9 @@ def detect_stack(root: Path) -> set[str]:
     # -- PHP --
     if _any_exist(root, "composer.json", "composer.lock", "artisan"):
         stacks.add("php")
+        # Laravel projects ship Blade templates under resources/views
+        if (root / "artisan").exists() or (root / "resources" / "views").exists():
+            stacks.add("blade")
 
     # -- Ruby --
     if _any_exist(root, "Gemfile", "Gemfile.lock", "Rakefile"):
@@ -307,13 +310,26 @@ def is_test(rel: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def _load_parsers():
-    """Import all parser modules in this package."""
+    """Import all parser modules in this package.
+
+    Loads in two phases so the registry ends up well-formed:
+      1. Native top-level modules + the `tree_sitter` package (skipping any
+         name starting with '_'). Registrations land directly in `_REGISTRY`.
+      2. The `_fallback` package's `load_fallbacks()` -- regex parsers
+         register under their own stack names; tree-sitter still wins via
+         the ext_map override in `get_parsers` for any extension it supports.
+    """
     import importlib
     import pkgutil
     pkg_path = str(Path(__file__).parent)
-    for importer, modname, ispkg in pkgutil.iter_modules([pkg_path]):
+    for _, modname, _ispkg in pkgutil.iter_modules([pkg_path]):
         if modname.startswith("_"):
             continue
         importlib.import_module(f".{modname}", __package__)
+
+    # Explicit fallback load -- `_fallback` is skipped by the loop above.
+    from ._fallback import load_fallbacks
+    load_fallbacks()
+
 
 _load_parsers()

@@ -16,7 +16,7 @@ from pathlib import Path
 from . import register, nid
 
 STACK = "vue"
-EXTENSIONS = frozenset({".vue", ".ts", ".tsx", ".js", ".jsx"})
+EXTENSIONS = frozenset({".vue"})
 
 # ---------------------------------------------------------------------------
 # SFC extraction
