@@ -1,5 +1,15 @@
 # Copilot Template
 
+> **⚠️ Renamed → [Coograph](https://github.com/paullukic/coograph)**
+>
+> This repo has moved to **`paullukic/coograph`**. New activity, releases, and documentation live there. This URL stays online for existing clones; please update remotes:
+>
+> ```bash
+> git remote set-url origin https://github.com/paullukic/coograph.git
+> ```
+>
+> Site: **[coograph.com](https://coograph.com)** · Repo: **[github.com/paullukic/coograph](https://github.com/paullukic/coograph)**
+
 Reusable AI coding assistant configuration for any project. Works with **Claude Code**, **VS Code Copilot**, **Cursor**, and **Windsurf**.
 
 Ships a structured workflow, specialized agents with anti-hallucination guardrails, Claude Code lifecycle hooks, and an optional code-graph MCP server that replaces brute-force file searching with targeted SQLite queries.
